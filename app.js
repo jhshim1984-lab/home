@@ -79,6 +79,10 @@ function formatPhoneNumber(value) {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
+function sanitizePhoneNumber(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
 function getDeductionRate(years) {
   if (years >= 15) {
     return "30%";
@@ -872,8 +876,8 @@ function generate() {
           <div class="room-title-wrap">
             <div class="room-title">${floorRoomNumbers[roomNumber]}호</div>
             <div class="room-status-badge">${roomStatusLabel}</div>
-            <button type="button" class="room-toggle">${isCompact ? "상세" : "닫기"}</button>
           </div>
+          <button type="button" class="room-toggle">${isCompact ? "상세" : "닫기"}</button>
         </div>
         <div class="room-top">
           <div class="mini-row">
@@ -883,6 +887,10 @@ function generate() {
           <div class="mini-row">
             <label>전화</label>
             <input class="tenant-phone" value="${roomState.tenantPhone || ""}">
+            <div class="phone-actions">
+              <a class="phone-action phone-call is-disabled" href="#" tabindex="-1">전화걸기</a>
+              <a class="phone-action phone-sms is-disabled" href="#" tabindex="-1">문자하기</a>
+            </div>
           </div>
         </div>
         <div class="room-grid">
@@ -954,12 +962,36 @@ function bind() {
     const roomToggle = room.querySelector(".room-toggle");
     const roomTitle = room.querySelector(".room-title")?.innerText || "호실";
     const roomStatusBadge = room.querySelector(".room-status-badge");
+    const tenantPhone = room.querySelector(".tenant-phone");
+    const phoneCall = room.querySelector(".phone-call");
+    const phoneSms = room.querySelector(".phone-sms");
 
     const updateRoomStatusBadge = () => {
       if (!roomStatusBadge) {
         return;
       }
       roomStatusBadge.innerText = vacant.checked ? "공실" : jeonse.checked ? "전세" : "월세";
+    };
+
+    const updatePhoneActions = () => {
+      const phone = sanitizePhoneNumber(tenantPhone?.value);
+      const enabled = phone.length >= 9;
+
+      [phoneCall, phoneSms].forEach((link) => {
+        if (!link) {
+          return;
+        }
+        link.classList.toggle("is-disabled", !enabled);
+        link.tabIndex = enabled ? 0 : -1;
+      });
+
+      if (phoneCall) {
+        phoneCall.href = enabled ? `tel:${phone}` : "#";
+      }
+
+      if (phoneSms) {
+        phoneSms.href = enabled ? `sms:${phone}` : "#";
+      }
     };
 
     if (roomToggle) {
@@ -1063,6 +1095,11 @@ function bind() {
     };
 
     updateRoomStatusBadge();
+    updatePhoneActions();
+
+    tenantPhone?.addEventListener("input", () => {
+      updatePhoneActions();
+    });
   });
 }
 
@@ -1329,6 +1366,23 @@ function renderRentRecords() {
       const formattedValue = formatInputNumber(input.value);
       input.value = formattedValue;
       upsertRentRecordAmount(roomLabel, month, formattedValue);
+    });
+
+    input.addEventListener("focus", () => {
+      if (input.value.trim()) {
+        return;
+      }
+
+      const baseRent = formatInputNumber(
+        document.querySelector(`.rent-record-cell[data-room="${input.dataset.room}"][data-month="${input.dataset.month}"]`)?.dataset.baseRent || ""
+      );
+
+      if (!baseRent) {
+        return;
+      }
+
+      input.value = baseRent;
+      upsertRentRecordAmount(input.dataset.room, input.dataset.month, baseRent);
     });
   });
 
