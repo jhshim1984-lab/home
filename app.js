@@ -34,6 +34,7 @@ let remoteSyncAvailable = true;
 let syncMessageShown = false;
 let localSnapshotSyncedAt = localStorage.getItem(syncMetaKey) || "";
 let remoteRefreshTimer = null;
+let localChangesPending = false;
 
 function newBuilding() {
   return {
@@ -63,6 +64,7 @@ function persistLocalState(markDirty = true) {
   localStorage.setItem(educationStorageKey, JSON.stringify(educationEntries));
   localStorage.setItem(appTabStorageKey, currentAppTab);
   if (markDirty) {
+    localChangesPending = true;
     localSnapshotSyncedAt = new Date().toISOString();
     localStorage.setItem(syncMetaKey, localSnapshotSyncedAt);
   }
@@ -186,6 +188,7 @@ async function syncRemoteNow() {
 
   try {
     await pushRemoteAppState();
+    localChangesPending = false;
     return true;
   } catch (error) {
     disableRemoteSyncWithMessage(`Supabase 동기화 중 오류가 발생했습니다: ${error.message || error}`);
@@ -206,6 +209,10 @@ function queueRemoteSync() {
 
 async function refreshFromRemoteSnapshot() {
   if (!canUseRemoteSync()) {
+    return;
+  }
+
+  if (localChangesPending) {
     return;
   }
 
