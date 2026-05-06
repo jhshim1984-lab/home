@@ -178,19 +178,50 @@ function disableRemoteSyncWithMessage(message) {
   }
 }
 
+async function syncRemoteNow() {
+  if (!canUseRemoteSync()) {
+    return false;
+  }
+
+  try {
+    await pushRemoteAppState();
+    return true;
+  } catch (error) {
+    disableRemoteSyncWithMessage(`Supabase 동기화 중 오류가 발생했습니다: ${error.message || error}`);
+    return false;
+  }
+}
+
 function queueRemoteSync() {
   if (!canUseRemoteSync()) {
     return;
   }
 
   clearTimeout(remoteSyncTimer);
-  remoteSyncTimer = window.setTimeout(async () => {
-    try {
-      await pushRemoteAppState();
-    } catch (error) {
-      disableRemoteSyncWithMessage(`Supabase 동기화가 아직 준비되지 않았습니다: ${error.message || error}`);
+  remoteSyncTimer = window.setTimeout(() => {
+    syncRemoteNow();
+  }, 120);
+}
+
+async function refreshFromRemoteSnapshot() {
+  if (!canUseRemoteSync()) {
+    return;
+  }
+
+  try {
+    const remoteSnapshot = await fetchRemoteAppState();
+    if (!snapshotHasContent(remoteSnapshot)) {
+      return;
     }
-  }, 500);
+
+    applyAppSnapshot(remoteSnapshot);
+    if (appBooted) {
+      load();
+      setAppTab(currentAppTab);
+    }
+  } catch (error) {
+    disableRemoteSyncWithMessage(`Supabase 데이터 새로고침 중 오류가 발생했습니다: ${error.message || error}`);
+  }
 }
 
 function bootApp() {
@@ -541,11 +572,13 @@ function shiftEducationMonth(diff) {
 
 function saveEducationEntries() {
   persistLocalState();
+  syncRemoteNow();
   queueRemoteSync();
 }
 
 function saveAcademies() {
   persistLocalState();
+  syncRemoteNow();
   queueRemoteSync();
 }
 
@@ -1190,6 +1223,7 @@ function save() {
   calcPortfolio();
   renderTabs();
   renderDashboardTab();
+  syncRemoteNow();
   queueRemoteSync();
 }
 
@@ -2032,6 +2066,7 @@ function importBackupData(file) {
         persistLocalState();
         load();
         setAppTab(currentAppTab);
+        syncRemoteNow();
         queueRemoteSync();
       } catch (error) {
       window.alert("백업 파일을 읽지 못했습니다.");
@@ -2281,6 +2316,21 @@ loginPassword.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     handleLogin();
   }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    syncRemoteNow();
+    return;
+  }
+
+  if (document.visibilityState === "visible") {
+    refreshFromRemoteSnapshot();
+  }
+});
+
+window.addEventListener("focus", () => {
+  refreshFromRemoteSnapshot();
 });
 
 if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
