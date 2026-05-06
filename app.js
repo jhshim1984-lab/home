@@ -134,7 +134,8 @@ async function applyAuthenticatedState(session) {
     if (!householdInfo) {
       currentHouseholdId = "";
       setAuthUiLoggedIn(session.user.email, "가족 데이터 연결이 아직 없습니다.");
-      setAppAccess(false);
+      setAppAccess(true);
+      bootApp();
       showAuthMessage("이 계정은 아직 household에 연결되지 않았습니다. Supabase에서 household_members 연결을 먼저 확인해 주세요.");
       return;
     }
@@ -145,9 +146,11 @@ async function applyAuthenticatedState(session) {
     setAppAccess(true);
     bootApp();
   } catch (error) {
-    setAuthUiLoggedIn(session.user.email, "가족 데이터 확인 중 오류");
-    setAppAccess(false);
-    showAuthMessage(`가족 데이터 연결 확인 중 오류가 발생했습니다: ${error.message || error}`);
+    currentHouseholdId = "";
+    setAuthUiLoggedIn(session.user.email, "가족 데이터 연결 확인 보류");
+    setAppAccess(true);
+    bootApp();
+    showAuthMessage(`가족 데이터 연결 확인 중 오류가 발생했습니다: ${error.message || error} / 우선은 로컬 모드로 앱을 열었습니다.`);
   }
 }
 
