@@ -39,6 +39,41 @@ function formatCurrency(value) {
   return `${Math.round(value || 0).toLocaleString()}원`;
 }
 
+function formatKoreanCurrencyText(value) {
+  const number = Math.floor(parseNumber(value));
+  if (!number) {
+    return "-";
+  }
+
+  const units = ["", "만", "억", "조"];
+  const smallUnits = ["", "십", "백", "천"];
+  const digits = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+  const parts = [];
+  let remaining = number;
+  let unitIndex = 0;
+
+  while (remaining > 0 && unitIndex < units.length) {
+    const chunk = remaining % 10000;
+    if (chunk) {
+      let chunkText = "";
+      String(chunk).padStart(4, "0").split("").forEach((digit, index) => {
+        const numericDigit = Number(digit);
+        if (!numericDigit) {
+          return;
+        }
+        const smallUnit = smallUnits[3 - index];
+        const digitText = numericDigit === 1 && smallUnit ? "" : digits[numericDigit];
+        chunkText += `${digitText}${smallUnit}`;
+      });
+      parts.unshift(`${chunkText}${units[unitIndex]}`);
+    }
+    remaining = Math.floor(remaining / 10000);
+    unitIndex += 1;
+  }
+
+  return `${parts.join(" ")}원`;
+}
+
 function parseNumber(value) {
   return Number(String(value || "").replace(/,/g, "").trim()) || 0;
 }
@@ -1126,6 +1161,8 @@ function calc() {
   const monthlyInterest = parseNumber(loan.value) * (parseNumber(rate.value) / 100) / 12;
   interest.innerText = formatCurrency(monthlyInterest);
   annualInterest.innerText = formatCurrency(monthlyInterest * 12);
+  priceKorean.innerText = formatKoreanCurrencyText(price.value);
+  loanKorean.innerText = formatKoreanCurrencyText(loan.value);
 
   updateHoldingInfo();
   calcPortfolio();

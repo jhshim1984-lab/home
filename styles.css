@@ -394,6 +394,12 @@ input[type="checkbox"] {
   min-height: 38px;
 }
 
+.inline-korean {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .floor-box {
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -488,7 +494,7 @@ input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   color: var(--accent-strong);
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -661,13 +667,13 @@ input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 42px;
-  padding: 5px 8px;
+  min-width: 58px;
+  padding: 7px 12px;
   border: 1px solid #ebd5bf;
-  border-radius: 999px;
+  border-radius: 14px;
   background: #fff7ef;
   color: var(--accent-strong);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
@@ -1324,7 +1330,7 @@ input[type="checkbox"] {
   min-width: 1120px;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .rent-records-table th,
@@ -1362,7 +1368,7 @@ input[type="checkbox"] {
   min-width: 0;
   padding: 2px 3px;
   text-align: right;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: -0.02em;
   border: 0;
   border-radius: 0;
@@ -1375,7 +1381,7 @@ input[type="checkbox"] {
   min-width: 0;
   padding: 2px 3px;
   text-align: right;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: -0.02em;
   border: 0;
   border-radius: 0;
@@ -1393,7 +1399,7 @@ input[type="checkbox"] {
   width: 100%;
   min-width: 0;
   padding: 3px 3px 1px;
-  font-size: 10px;
+  font-size: 13px;
   text-align: center;
   border: 0;
   border-top: 1px solid #efe0d1;
@@ -1405,13 +1411,13 @@ input[type="checkbox"] {
 .rent-records-table tbody tr:last-child td,
 .rent-records-table tbody tr:nth-last-child(2) td,
 .rent-records-table tbody tr:nth-last-child(3) td {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .rent-records-table tbody tr:last-child b,
 .rent-records-table tbody tr:nth-last-child(2) b,
 .rent-records-table tbody tr:nth-last-child(3) b {
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: -0.03em;
 }
 
@@ -1420,7 +1426,7 @@ input[type="checkbox"] {
 }
 
 .rent-month-col {
-  width: 86px;
+  width: 52px;
 }
 
 .rent-room-meta {
@@ -1594,14 +1600,13 @@ hr {
 
   .phone-action {
     flex: 0 0 auto;
-    min-width: 40px;
-    padding: 6px 7px;
-    font-size: 10px;
+    min-width: 54px;
+    padding: 7px 10px;
+    font-size: 11px;
   }
 
   .room-status-badge {
-    font-size: 10px;
-    padding: 4px 8px;
+    font-size: 14px;
   }
 
   .rent-records-header {
@@ -1611,7 +1616,7 @@ hr {
 
   .rent-records-table {
     min-width: 1180px;
-    font-size: 10px;
+    font-size: 13px;
   }
 
   .rent-room-col {
@@ -1619,17 +1624,17 @@ hr {
   }
 
   .rent-month-col {
-    width: 90px;
+    width: 54px;
   }
 
   .rent-record-input,
   .rent-interest-input {
-    font-size: 12px;
+    font-size: 13px;
     padding: 3px 2px;
   }
 
   .rent-record-date {
-    font-size: 10px;
+    font-size: 12px;
     padding: 3px 2px 1px;
   }
 
