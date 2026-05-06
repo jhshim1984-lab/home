@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f28c28">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="홈 매니저">
+<meta name="mobile-web-app-capable" content="yes">
+<title>홈 매니저</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<link rel="stylesheet" href="./styles.css">
+
+</head>
+<body>
+<div class="container">
+  <h2>홈 매니저</h2>
+  <div class="mobile-webapp-tip">
+    아이폰에서는 사파리의 공유 버튼을 눌러 <b>홈 화면에 추가</b>하면 앱처럼 사용할 수 있습니다.
+  </div>
+
+  <div class="app-tabs">
+    <button type="button" class="app-tab active" data-tab="dashboard">대시보드</button>
+    <button type="button" class="app-tab" data-tab="rental">임대관리</button>
+    <button type="button" class="app-tab" data-tab="education">교육비</button>
+    <button type="button" class="app-tab" data-tab="report">월간리포트</button>
+  </div>
+
+  <section id="rentalSection" class="app-panel app-section">
+  <div class="dashboard">
+    <b>전체 포트폴리오</b>
+    <div id="portfolioList"></div>
+    <div class="summary-grid">
+      <div class="summary-card">총 보증금<span id="totalDeposit"></span></div>
+      <div class="summary-card">총 월세<span id="totalRent"></span></div>
+      <div class="summary-card">총 대출<span id="totalLoan"></span></div>
+      <div class="summary-card">총 월 이자<span id="totalInterest"></span></div>
+    </div>
+    <div class="net-box">전체 월 순수익: <span id="totalNet"></span></div>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h3>건물 정보</h3>
+      <button type="button" id="togglePropertyDetailsButton" class="collapse-toggle">매입 정보 접기</button>
+    </div>
+
+    <div class="inline-fields">
+      <label for="buildingName">건물명</label>
+      <input id="buildingName">
+      <label for="address">주소</label>
+      <input id="address">
+    </div>
+
+    <hr>
+
+    <div id="propertyDetails" class="property-details">
+      <div class="grid2">
+      <div>
+        <div class="field-row">
+          <label for="price">매입가</label>
+          <input id="price" class="num">
+        </div>
+        <div class="field-row">
+          <label for="loan">대출금</label>
+          <input id="loan" class="num">
+        </div>
+        <div class="field-row">
+          <label for="rate">금리</label>
+          <input id="rate" value="4">
+          <span>%</span>
+        </div>
+        <div class="field-row">
+          <label>월 이자</label>
+          <span id="interest">0원</span>
+        </div>
+        <div class="field-row">
+          <label>연 이자</label>
+          <span id="annualInterest">0원</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="field-row">
+          <label for="buyDate">매수일</label>
+          <input type="date" id="buyDate">
+        </div>
+        <div class="field-row">
+          <label>보유기간</label>
+          <span id="holdYears">-</span>
+        </div>
+        <div class="field-row">
+          <label>공제율</label>
+          <span id="deductionRate">-</span>
+        </div>
+      </div>
+
+      <div class="map-panel">
+        <div class="map-header">
+          <span class="map-title">건물 지도</span>
+        </div>
+        <div id="mapEmpty" class="map-empty">주소를 입력하면 이 위치의 지도를 표시합니다.</div>
+        <iframe
+          id="mapFrame"
+          class="map-frame"
+          title="건물 위치 지도"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          style="display:none;"
+        ></iframe>
+      </div>
+    </div>
+    </div>
+
+    <hr>
+
+    <div id="floorSectionTitle" class="section-heading">
+      <h3>층별 호실</h3>
+      <button type="button" id="toggleFloorsButton" class="collapse-toggle">층별 호실 설정 접기</button>
+    </div>
+
+    <div id="floorSettings" class="floor-settings">
+      <div class="floor-grid">
+        <div class="floor-item">
+          <label for="f1">1층</label>
+          <input id="f1" value="2">
+          <span class="exclude-label">제외</span>
+          <input id="x1" placeholder="4,13">
+        </div>
+        <div class="floor-item">
+          <label for="f2">2층</label>
+          <input id="f2" value="2">
+          <span class="exclude-label">제외</span>
+          <input id="x2" placeholder="4,13">
+        </div>
+        <div class="floor-item">
+          <label for="f3">3층</label>
+          <input id="f3" value="2">
+          <span class="exclude-label">제외</span>
+          <input id="x3" placeholder="4,13">
+        </div>
+      </div>
+      <div class="floor-grid two">
+        <div class="floor-item">
+          <label for="f4">4층</label>
+          <input id="f4" value="0">
+          <span class="exclude-label">제외</span>
+          <input id="x4" placeholder="4,13">
+        </div>
+        <div class="floor-item">
+          <label for="f5">5층</label>
+          <input id="f5" value="0">
+          <span class="exclude-label">제외</span>
+          <input id="x5" placeholder="4,13">
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" onclick="generate()">호실 생성</button>
+      </div>
+    </div>
+
+    <div id="rooms"></div>
+
+    <div class="totals">
+      <span>총 보증금 <span id="depositSum">0원</span></span>
+      <span>총 월세 <span id="rentSum">0원</span></span>
+    </div>
+
+    <div class="rent-records">
+      <div class="rent-records-header">
+        <h3 id="rentRecordsTitle" style="margin:0;">2026년 월세 기록</h3>
+        <div class="actions" style="margin-top:0;">
+          <button type="button" id="backupDataButton">백업 저장</button>
+          <button type="button" id="importDataButton">백업 불러오기</button>
+          <button type="button" id="exportPdfButton">PDF 내보내기</button>
+          <button type="button" id="printRentRecordsButton">A4 출력</button>
+        </div>
+      </div>
+      <div id="rentRecordsContainer"></div>
+    </div>
+
+  </div>
+  </section>
+
+  <section id="educationSection" class="panel app-panel app-section hidden">
+    <div class="section-heading">
+      <h3>교육비</h3>
+    </div>
+
+    <div class="education-toolbar">
+      <button type="button" id="educationPrevMonth" class="month-nav">&lt;</button>
+      <div id="educationMonthLabel" class="education-month-label">2026년 4월</div>
+      <button type="button" id="educationNextMonth" class="month-nav">&gt;</button>
+    </div>
+
+    <div class="education-summary">
+      <div class="summary-card">이번 달 총 교육비<span id="educationTotalAmount">0원</span></div>
+      <div class="summary-card">자녀1<span id="educationChild1Amount">0원</span></div>
+      <div class="summary-card">자녀2<span id="educationChild2Amount">0원</span></div>
+    </div>
+
+    <div class="education-filters">
+      <div class="filter-group" id="educationCategoryFilters">
+        <button type="button" class="filter-chip active" data-category-filter="all">전체항목</button>
+        <button type="button" class="filter-chip" data-category-filter="학원비">학원비</button>
+        <button type="button" class="filter-chip" data-category-filter="교재비">교재비</button>
+        <button type="button" class="filter-chip" data-category-filter="시험비">시험비</button>
+        <button type="button" class="filter-chip" data-category-filter="특강비">특강비</button>
+        <button type="button" class="filter-chip" data-category-filter="기타">기타</button>
+      </div>
+    </div>
+
+    <div class="section-heading">
+      <h3 id="educationEntryTitle">빠른 입력</h3>
+    </div>
+
+    <div id="educationEntryCard" class="education-entry-card">
+      <div class="education-entry-sections">
+        <div class="education-subsection" id="academySubsection">
+          <div class="section-heading">
+            <h3>학원 등록 / 관리</h3>
+            <button type="button" id="toggleAcademySectionButton" class="collapse-toggle">입력 접기</button>
+          </div>
+          <div id="academySectionBody" class="education-subsection-body">
+          <div class="education-entry-grid">
+            <div class="education-entry-field">
+              <label for="academyChild">자녀</label>
+              <select id="academyChild">
+                <option value="자녀1">자녀1</option>
+                <option value="자녀2">자녀2</option>
+              </select>
+            </div>
+            <div class="education-entry-field">
+              <label for="academyCategory">분류</label>
+              <select id="academyCategory">
+                <option value="학원비">학원비</option>
+                <option value="특강비">특강비</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+            <div class="education-entry-field">
+              <label for="academyName">학원명</label>
+              <input id="academyName" placeholder="예: 영어학원">
+            </div>
+            <div class="education-entry-field">
+              <label for="academyAmount">기본금액</label>
+              <input id="academyAmount" class="num" placeholder="0">
+            </div>
+            <div class="education-entry-field">
+              <label for="academyDueDay">기본일자</label>
+              <input id="academyDueDay" placeholder="예: 12">
+            </div>
+            <div class="education-entry-field education-entry-field-wide">
+              <label for="academyMemo">메모</label>
+              <div class="memo-inline">
+                <div class="memo-choices" data-target="academyMemo">
+                  <button type="button" class="memo-choice" data-target="academyMemo" data-value="아빠">아빠</button>
+                  <button type="button" class="memo-choice" data-target="academyMemo" data-value="엄마">엄마</button>
+                </div>
+                <input id="academyMemo" placeholder="직접 입력">
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" id="addAcademyButton">학원 등록</button>
+          </div>
+          <div id="academyList" class="academy-list"></div>
+          </div>
+        </div>
+
+        <div class="education-subsection">
+          <div class="section-heading">
+            <h3>등록 학원으로 빠른 입력</h3>
+          </div>
+          <div id="academyQuickButtons" class="academy-quick-buttons"></div>
+          <div class="education-entry-grid">
+            <div class="education-entry-field">
+              <label for="academyQuickChild">자녀</label>
+              <input id="academyQuickChild" readonly>
+            </div>
+            <div class="education-entry-field">
+              <label for="academyQuickCategory">항목</label>
+              <input id="academyQuickCategory" readonly>
+            </div>
+            <div class="education-entry-field">
+              <label for="academyQuickTitle">내용</label>
+              <input id="academyQuickTitle" readonly>
+            </div>
+            <div class="education-entry-field">
+              <label for="academyQuickAmount">금액</label>
+              <input id="academyQuickAmount" class="num">
+            </div>
+            <div class="education-entry-field">
+              <label for="academyQuickDate">날짜</label>
+              <div class="education-date-wrap">
+                <input id="academyQuickDate" placeholder="YY-MM-DD" inputmode="numeric" maxlength="8">
+                <button type="button" id="academyQuickTodayButton">오늘</button>
+              </div>
+            </div>
+            <div class="education-entry-field education-entry-field-wide">
+              <label for="academyQuickMemo">메모</label>
+              <div class="memo-inline">
+                <div class="memo-choices" data-target="academyQuickMemo">
+                  <button type="button" class="memo-choice" data-target="academyQuickMemo" data-value="아빠">아빠</button>
+                  <button type="button" class="memo-choice" data-target="academyQuickMemo" data-value="엄마">엄마</button>
+                </div>
+                <input id="academyQuickMemo" placeholder="직접 입력">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="education-subsection" id="educationDirectSubsection">
+          <div class="section-heading">
+            <h3>기타 교육비 직접 입력</h3>
+            <button type="button" id="toggleDirectEducationSectionButton" class="collapse-toggle">입력 접기</button>
+          </div>
+          <div id="directEducationSectionBody" class="education-subsection-body">
+          <div class="education-entry-grid">
+            <div class="education-entry-field">
+              <label for="educationChild">자녀</label>
+              <select id="educationChild">
+                <option value="자녀1">자녀1</option>
+                <option value="자녀2">자녀2</option>
+              </select>
+            </div>
+            <div class="education-entry-field">
+              <label for="educationCategory">항목</label>
+              <select id="educationCategory">
+                <option value="교재비">교재비</option>
+                <option value="시험비">시험비</option>
+                <option value="특강비">특강비</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+            <div class="education-entry-field">
+              <label for="educationTitle">내용</label>
+              <input id="educationTitle" placeholder="예: 수학 문제집">
+            </div>
+            <div class="education-entry-field">
+              <label for="educationAmount">금액</label>
+              <input id="educationAmount" class="num" placeholder="0">
+            </div>
+            <div class="education-entry-field">
+              <label for="educationDate">날짜</label>
+              <div class="education-date-wrap">
+                <input id="educationDate" placeholder="YY-MM-DD" inputmode="numeric" maxlength="8">
+                <button type="button" id="educationTodayButton">오늘</button>
+              </div>
+            </div>
+            <div class="education-entry-field education-entry-field-wide">
+              <label for="educationMemo">메모</label>
+              <div class="memo-inline">
+                <div class="memo-choices" data-target="educationMemo">
+                  <button type="button" class="memo-choice" data-target="educationMemo" data-value="아빠">아빠</button>
+                  <button type="button" class="memo-choice" data-target="educationMemo" data-value="엄마">엄마</button>
+                </div>
+                <input id="educationMemo" placeholder="직접 입력">
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" id="addEducationEntryButton">직접 추가</button>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="education-month-totals">
+      <div class="summary-card">자녀1 합계<span id="educationChild1Total">0원</span></div>
+      <div class="summary-card">자녀2 합계<span id="educationChild2Total">0원</span></div>
+      <div class="summary-card">전체 합계<span id="educationGrandTotal">0원</span></div>
+    </div>
+
+    <div class="education-yearly-block">
+      <div class="section-heading">
+        <h3>2026년 교육비 기록표</h3>
+      </div>
+      <div id="educationYearlyTable"></div>
+    </div>
+
+    <div class="education-list-block">
+      <div class="section-heading">
+        <h3>이번 달 기록</h3>
+      </div>
+      <div id="educationColumns"></div>
+    </div>
+  </section>
+
+  <section id="dashboardSection" class="panel app-panel app-section hidden">
+    <div class="section-heading">
+      <h3>대시보드</h3>
+    </div>
+    <div class="education-toolbar">
+      <button type="button" id="dashboardPrevMonth" class="month-nav">&lt;</button>
+      <div id="dashboardMonthToolbarLabel" class="education-month-label">이번 달</div>
+      <button type="button" id="dashboardNextMonth" class="month-nav">&gt;</button>
+    </div>
+    <div class="dashboard-hero">
+      <div class="dashboard-hero-main">
+        <div class="dashboard-label" id="dashboardMonthLabel">이번 달 요약</div>
+        <div class="dashboard-hero-amount" id="dashboardNetFlow">0원</div>
+        <div class="dashboard-hero-sub">임대 순수익 - 교육비 기준 순흐름</div>
+      </div>
+      <div class="dashboard-hero-side">
+        <div class="dashboard-mini-card">
+          <span>임대 순수익</span>
+          <strong id="dashboardRentalNet">0원</strong>
+        </div>
+        <div class="dashboard-mini-card">
+          <span>교육비</span>
+          <strong id="dashboardEducationTotal">0원</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-overview">
+      <div class="summary-card">이번 달 월세 수입<span id="dashboardRentIncome">0원</span></div>
+      <div class="summary-card">이번 달 대출이자<span id="dashboardLoanInterest">0원</span></div>
+      <div class="summary-card">자녀1 교육비<span id="dashboardChild1Education">0원</span></div>
+      <div class="summary-card">자녀2 교육비<span id="dashboardChild2Education">0원</span></div>
+    </div>
+
+    <div class="dashboard-split">
+      <div class="dashboard-block">
+        <div class="section-heading">
+          <h3>건물별 이번 달 현황</h3>
+        </div>
+        <div id="dashboardBuildingList" class="dashboard-building-list"></div>
+      </div>
+
+      <div class="dashboard-block">
+        <div class="section-heading">
+          <h3>교육비 현황</h3>
+        </div>
+        <div id="dashboardEducationList" class="dashboard-education-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="reportSection" class="panel app-panel app-section hidden">
+    <div class="section-heading">
+      <h3>월간리포트</h3>
+    </div>
+    <p class="muted">월간리포트 화면은 임대관리와 교육비 데이터를 연결한 뒤 추가할 예정입니다.</p>
+  </section>
+</div>
+
+<input type="file" id="importDataInput" accept=".json" hidden>
+
+<script src="./app.js"></script>
+</body>
+</html>
+

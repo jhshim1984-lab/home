@@ -1,0 +1,1731 @@
+const storageKey = "b";
+const educationStorageKey = "educationExpenses";
+const academyStorageKey = "educationAcademies";
+const appTabStorageKey = "appTab";
+const buildingNameInput = document.getElementById("buildingName");
+let current = 0;
+let buildings = JSON.parse(localStorage.getItem(storageKey) || "null") || [newBuilding()];
+let educationEntries = JSON.parse(localStorage.getItem(educationStorageKey) || "[]");
+let academies = JSON.parse(localStorage.getItem(academyStorageKey) || "[]");
+let currentAppTab = localStorage.getItem(appTabStorageKey) || "rental";
+let educationMonth = "2026-04";
+let educationCategoryFilter = "all";
+let selectedAcademyId = "";
+let academySectionCollapsed = false;
+let directEducationSectionCollapsed = false;
+const initialDashboardDate = new Date();
+let dashboardMonth = `${initialDashboardDate.getFullYear()}-${String(initialDashboardDate.getMonth() + 1).padStart(2, "0")}`;
+
+function newBuilding() {
+  return {
+    name: "",
+    address: "",
+    price: "",
+    loan: "",
+    rate: "4",
+    buyDate: "",
+    floors: [2, 2, 2, 0, 0],
+    floorExcludes: ["", "", "", "", ""],
+    floorCollapsed: [false, false, false, false, false],
+    propertyDetailsCollapsed: false,
+    floorSettingsCollapsed: false,
+    rentRecords: {},
+    rentExpenses: {},
+    rooms: []
+  };
+}
+
+function formatCurrency(value) {
+  return `${Math.round(value || 0).toLocaleString()}원`;
+}
+
+function parseNumber(value) {
+  return Number(String(value || "").replace(/,/g, "").trim()) || 0;
+}
+
+function formatInputNumber(value) {
+  const digits = String(value || "").replace(/[^\d.-]/g, "");
+  if (!digits || digits === "-" || digits === "." || digits === "-.") {
+    return "";
+  }
+
+  const numericValue = Number(digits);
+  if (Number.isNaN(numericValue)) {
+    return "";
+  }
+
+  return numericValue.toLocaleString();
+}
+
+function formatShortDateInput(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 6);
+  if (digits.length <= 2) {
+    return digits;
+  }
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  }
+  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+}
+
+function formatPhoneNumber(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 11);
+  if (digits.length < 4) {
+    return digits;
+  }
+  if (digits.length < 8) {
+    return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  }
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
+function getDeductionRate(years) {
+  if (years >= 15) {
+    return "30%";
+  }
+  if (years >= 10) {
+    return "20%";
+  }
+  if (years >= 5) {
+    return "10%";
+  }
+  return "0%";
+}
+
+function updateMap() {
+  const query = address.value.trim();
+
+  if (!query) {
+    mapFrame.style.display = "none";
+    mapFrame.src = "";
+    mapEmpty.style.display = "flex";
+    return;
+  }
+
+  const encodedQuery = encodeURIComponent(query);
+  mapFrame.src = `https://maps.google.com/maps?q=${encodedQuery}&z=16&output=embed`;
+  mapFrame.style.display = "block";
+  mapEmpty.style.display = "none";
+}
+
+function getRentRecordsHeading() {
+  const buildingName = buildingNameInput.value.trim();
+  return buildingName ? `2026년 월세 기록 - ${buildingName}` : "2026년 월세 기록";
+}
+
+function formatEducationMonthLabel(monthValue) {
+  const [year, month] = monthValue.split("-");
+  return `${year}년 ${Number(month)}월`;
+}
+
+function shiftEducationMonth(diff) {
+  const [year, month] = educationMonth.split("-").map(Number);
+  const base = new Date(year, month - 1 + diff, 1);
+  educationMonth = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function saveEducationEntries() {
+  localStorage.setItem(educationStorageKey, JSON.stringify(educationEntries));
+}
+
+function saveAcademies() {
+  localStorage.setItem(academyStorageKey, JSON.stringify(academies));
+}
+
+function setMemoFieldValue(input, rawValue) {
+  input.value = rawValue || "";
+  input.dataset.payer = "";
+  const choices = document.querySelectorAll(`.memo-choice[data-target="${input.id}"]`);
+  choices.forEach((choice) => choice.classList.remove("active"));
+}
+
+function buildMemoValue(input) {
+  const payer = input.dataset.payer || "";
+  const note = input.value.trim();
+  if (payer && note) {
+    return `${payer} / ${note}`;
+  }
+  return payer || note;
+}
+
+function toggleMemoChoice(targetId, value) {
+  const input = document.getElementById(targetId);
+  if (!input) {
+    return;
+  }
+
+  const nextValue = input.dataset.payer === value ? "" : value;
+  input.dataset.payer = nextValue;
+  document.querySelectorAll(`.memo-choice[data-target="${targetId}"]`).forEach((choice) => {
+    choice.classList.toggle("active", choice.dataset.value === nextValue);
+  });
+}
+
+function setEducationSubsectionCollapsed(sectionName, collapsed) {
+  if (sectionName === "academy") {
+    academySectionCollapsed = collapsed;
+    academySectionBody.classList.toggle("hidden", collapsed);
+    toggleAcademySectionButton.innerText = collapsed ? "입력 열기" : "입력 접기";
+    return;
+  }
+
+  if (sectionName === "direct") {
+    directEducationSectionCollapsed = collapsed;
+    directEducationSectionBody.classList.toggle("hidden", collapsed);
+    toggleDirectEducationSectionButton.innerText = collapsed ? "입력 열기" : "입력 접기";
+  }
+}
+
+function getFilteredEducationEntries() {
+  return educationEntries.filter((entry) => {
+    if (entry.month !== educationMonth) {
+      return false;
+    }
+    if (educationCategoryFilter !== "all" && entry.category !== educationCategoryFilter) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function getEducationMonthEntries() {
+  return educationEntries.filter((entry) => entry.month === educationMonth);
+}
+
+function getCurrentDashboardMonth() {
+  const [year, month] = dashboardMonth.split("-").map(Number);
+  const now = new Date(year, month - 1, 1);
+  return {
+    year: String(now.getFullYear()),
+    month: String(now.getMonth() + 1).padStart(2, "0"),
+    label: `${now.getFullYear()}년 ${now.getMonth() + 1}월`
+  };
+}
+
+function shiftDashboardMonth(diff) {
+  const [year, month] = dashboardMonth.split("-").map(Number);
+  const base = new Date(year, month - 1 + diff, 1);
+  dashboardMonth = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function renderDashboardTab() {
+  const { year, month, label } = getCurrentDashboardMonth();
+  const educationMonthKey = `${year}-${month}`;
+  const monthEntries = educationEntries.filter((entry) => entry.month === educationMonthKey);
+  const educationChild1 = monthEntries
+    .filter((entry) => entry.child === "자녀1")
+    .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
+  const educationChild2 = monthEntries
+    .filter((entry) => entry.child === "자녀2")
+    .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
+  const educationTotal = educationChild1 + educationChild2;
+
+  const buildingSummaries = buildings.map((building, index) => {
+    const roomRecords = building.rentRecords?.[year] || {};
+    const rentIncome = Object.values(roomRecords).reduce((sum, roomRecord) => {
+      const monthRecord = roomRecord?.[month];
+      const amount = typeof monthRecord === "object" && monthRecord !== null ? monthRecord.amount : monthRecord;
+      return sum + parseNumber(amount);
+    }, 0);
+    const loanInterest = parseNumber(building.rentExpenses?.[year]?.[month]);
+
+    return {
+      name: building.name || `건물${index + 1}`,
+      rentIncome,
+      loanInterest,
+      net: rentIncome - loanInterest
+    };
+  });
+
+  const rentalIncome = buildingSummaries.reduce((sum, item) => sum + item.rentIncome, 0);
+  const loanInterestTotal = buildingSummaries.reduce((sum, item) => sum + item.loanInterest, 0);
+  const rentalNet = rentalIncome - loanInterestTotal;
+  const finalNet = rentalNet - educationTotal;
+
+  dashboardMonthToolbarLabel.innerText = label;
+  dashboardMonthLabel.innerText = `${label} 요약`;
+  dashboardNetFlow.innerText = formatCurrency(finalNet);
+  dashboardRentalNet.innerText = formatCurrency(rentalNet);
+  dashboardEducationTotal.innerText = formatCurrency(educationTotal);
+  dashboardRentIncome.innerText = formatCurrency(rentalIncome);
+  dashboardLoanInterest.innerText = formatCurrency(loanInterestTotal);
+  dashboardChild1Education.innerText = formatCurrency(educationChild1);
+  dashboardChild2Education.innerText = formatCurrency(educationChild2);
+
+  dashboardBuildingList.innerHTML = buildingSummaries.length === 0
+    ? '<div class="education-empty">등록된 건물이 없습니다.</div>'
+    : buildingSummaries.map((item) => `
+        <div class="dashboard-building-item">
+          <div class="dashboard-building-top">
+            <div class="dashboard-building-name">${item.name}</div>
+            <div class="dashboard-building-amount">${formatCurrency(item.net)}</div>
+          </div>
+          <div class="dashboard-building-meta">
+            <span>월세 수입 ${formatCurrency(item.rentIncome)}</span>
+            <span>대출이자 ${formatCurrency(item.loanInterest)}</span>
+          </div>
+        </div>
+      `).join("");
+
+  dashboardEducationList.innerHTML = `
+    <div class="dashboard-education-item">
+      <div class="dashboard-education-top">
+        <div class="dashboard-education-name">자녀1</div>
+        <div class="dashboard-education-amount">${formatCurrency(educationChild1)}</div>
+      </div>
+      <div class="dashboard-education-meta">
+        <span>${label} 교육비 합계</span>
+      </div>
+    </div>
+    <div class="dashboard-education-item">
+      <div class="dashboard-education-top">
+        <div class="dashboard-education-name">자녀2</div>
+        <div class="dashboard-education-amount">${formatCurrency(educationChild2)}</div>
+      </div>
+      <div class="dashboard-education-meta">
+        <span>${label} 교육비 합계</span>
+      </div>
+    </div>
+    <div class="dashboard-education-item">
+      <div class="dashboard-education-top">
+        <div class="dashboard-education-name">전체 교육비</div>
+        <div class="dashboard-education-amount">${formatCurrency(educationTotal)}</div>
+      </div>
+      <div class="dashboard-education-meta">
+        <span>자녀1 + 자녀2</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderEducationTab() {
+  educationMonthLabel.innerText = formatEducationMonthLabel(educationMonth);
+  const monthEntries = getEducationMonthEntries();
+  const filteredEntries = getFilteredEducationEntries().sort((a, b) => a.date.localeCompare(b.date));
+  const child1Entries = filteredEntries.filter((entry) => entry.child === "자녀1");
+  const child2Entries = filteredEntries.filter((entry) => entry.child === "자녀2");
+
+  const child1Total = monthEntries
+    .filter((entry) => entry.child === "자녀1")
+    .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
+  const child2Total = monthEntries
+    .filter((entry) => entry.child === "자녀2")
+    .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
+  const grandTotal = child1Total + child2Total;
+
+  educationTotalAmount.innerText = formatCurrency(grandTotal);
+  educationChild1Amount.innerText = formatCurrency(child1Total);
+  educationChild2Amount.innerText = formatCurrency(child2Total);
+  educationChild1Total.innerText = formatCurrency(child1Total);
+  educationChild2Total.innerText = formatCurrency(child2Total);
+  educationGrandTotal.innerText = formatCurrency(grandTotal);
+  setEducationSubsectionCollapsed("academy", academySectionCollapsed);
+  setEducationSubsectionCollapsed("direct", directEducationSectionCollapsed);
+  renderAcademyList();
+  populateAcademyQuickSelect();
+
+  educationColumns.innerHTML = `
+    <div class="education-columns">
+      ${renderEducationColumn("자녀1", child1Entries)}
+      ${renderEducationColumn("자녀2", child2Entries)}
+    </div>
+  `;
+  renderEducationYearlyTable();
+}
+
+function renderAcademyList() {
+  if (academies.length === 0) {
+    academyList.innerHTML = '<div class="education-empty">등록된 학원이 없습니다.</div>';
+    return;
+  }
+
+  const groups = ["자녀1", "자녀2"].map((child) => {
+    const childAcademies = academies.filter((academy) => academy.child === child);
+    if (childAcademies.length === 0) {
+      return "";
+    }
+
+    return `
+      <div class="academy-group">
+        <div class="academy-group-title">${child}</div>
+        <div class="academy-group-items">
+          ${childAcademies.map((academy) => `
+            <div class="academy-item ${academy.child === "자녀1" ? "child1" : "child2"}">
+              <div class="academy-item-main">
+                <div class="academy-item-title">${academy.name}</div>
+                <div class="academy-item-meta">${academy.category} · ${formatCurrency(parseNumber(academy.amount))} · 매월 ${academy.dueDay || "-"}일</div>
+              </div>
+              <div class="academy-item-actions">
+                <button type="button" class="academy-action-button delete" data-academy-id="${academy.id}">삭제</button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  academyList.innerHTML = groups;
+}
+
+function populateAcademyQuickSelect() {
+  if (academies.length === 0) {
+    academyQuickButtons.innerHTML = '<div class="education-empty">선택할 학원이 없습니다.</div>';
+  } else {
+    academyQuickButtons.innerHTML = ["자녀1", "자녀2"].map((child) => {
+      const childAcademies = academies.filter((academy) => academy.child === child);
+      if (childAcademies.length === 0) {
+        return "";
+      }
+
+      return `
+        <div class="academy-quick-group">
+          <div class="academy-group-title">${child}</div>
+          <div class="academy-quick-row">
+            <div class="academy-quick-group-items">
+              ${childAcademies.map((academy) => `
+                <button
+                  type="button"
+                  class="academy-quick-button ${academy.child === "자녀1" ? "child1" : "child2"}${academy.id === selectedAcademyId ? " active" : ""}"
+                  data-academy-id="${academy.id}"
+                >
+                  ${academy.name}
+                </button>
+              `).join("")}
+            </div>
+            <button type="button" class="academy-quick-add-button" data-child="${child}">이번 달에 추가</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  if (!academies.some((academy) => academy.id === selectedAcademyId)) {
+    selectedAcademyId = "";
+  }
+  fillQuickAcademyForm();
+}
+
+function fillQuickAcademyForm() {
+  const academy = academies.find((item) => item.id === selectedAcademyId);
+  academyQuickChild.value = academy?.child || "";
+  academyQuickCategory.value = academy?.category || "";
+  academyQuickTitle.value = academy?.name || "";
+  academyQuickAmount.value = academy ? formatInputNumber(academy.amount) : "";
+  setMemoFieldValue(academyQuickMemo, "");
+}
+
+function resetAcademyForm() {
+  academyChild.value = "자녀1";
+  academyCategory.value = "학원비";
+  academyName.value = "";
+  academyAmount.value = "";
+  academyDueDay.value = "";
+  setMemoFieldValue(academyMemo, "");
+}
+
+function addAcademy() {
+  const name = academyName.value.trim();
+  const amount = formatInputNumber(academyAmount.value);
+
+  if (!name || !amount) {
+    window.alert("학원명과 기본금액을 입력해 주세요.");
+    return;
+  }
+
+  academies.push({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    child: academyChild.value,
+    category: academyCategory.value,
+    name,
+      amount,
+      dueDay: academyDueDay.value.trim(),
+      memo: buildMemoValue(academyMemo)
+    });
+  saveAcademies();
+  resetAcademyForm();
+  renderEducationTab();
+}
+
+function deleteAcademy(academyId) {
+  const academy = academies.find((item) => item.id === academyId);
+  if (!academy) {
+    return;
+  }
+
+  if (!window.confirm(`${academy.child}의 ${academy.name} 학원 정보를 삭제할까요?`)) {
+    return;
+  }
+
+  academies = academies.filter((item) => item.id !== academyId);
+  saveAcademies();
+  renderEducationTab();
+}
+
+function renderEducationColumn(childLabel, entries) {
+  const total = entries.reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
+  const listHtml = entries.length === 0
+    ? `<div class="education-empty">${childLabel} 기록이 없습니다.</div>`
+    : `<div class="education-list">${entries.map((entry) => `
+        <div class="education-item">
+          <div class="education-item-top">
+            <span>${entry.date || "-"}</span>
+            <span>${entry.category}</span>
+          </div>
+          <div class="education-item-main">
+            <div class="education-item-title">${entry.title || "-"}</div>
+            <div class="education-item-amount">${formatCurrency(parseNumber(entry.amount))}</div>
+          </div>
+          ${entry.memo ? `<div class="education-item-memo">${entry.memo}</div>` : ""}
+          <div class="education-item-actions">
+            <button type="button" class="education-delete-button" data-entry-id="${entry.id}">삭제</button>
+          </div>
+        </div>
+      `).join("")}</div>`;
+
+  return `
+    <div class="education-column">
+      <div class="education-column-header">
+        <div class="education-column-title">${childLabel}</div>
+        <div class="education-column-total">${formatCurrency(total)}</div>
+      </div>
+      ${listHtml}
+    </div>
+  `;
+}
+
+function renderEducationYearlyTable() {
+  const months = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
+  const rows = ["자녀1", "자녀2"].map((child) => {
+    const monthCells = months.map((month) => {
+      const total = educationEntries
+        .filter((entry) => entry.month === `2026-${month}` && entry.child === child)
+        .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
+      return `<td>${formatCurrency(total)}</td>`;
+    }).join("");
+    return `<tr><td>${child}</td>${monthCells}</tr>`;
+  }).join("");
+
+  const totalCells = months.map((month) => {
+    const total = educationEntries
+      .filter((entry) => entry.month === `2026-${month}`)
+      .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
+    return `<td>${formatCurrency(total)}</td>`;
+  }).join("");
+
+  educationYearlyTable.innerHTML = `
+    <div class="education-yearly-wrap">
+      <table class="education-yearly-table">
+        <thead>
+          <tr>
+            <th>구분</th>
+            ${months.map((month) => `<th>${Number(month)}월</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+          <tr class="year-total-row">
+            <td>합계</td>
+            ${totalCells}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function deleteEducationEntry(entryId) {
+  const target = educationEntries.find((entry) => entry.id === entryId);
+  if (!target) {
+    return;
+  }
+
+  if (!window.confirm(`${target.child}의 ${target.title || target.category} 기록을 삭제할까요?`)) {
+    return;
+  }
+
+  educationEntries = educationEntries.filter((entry) => entry.id !== entryId);
+  saveEducationEntries();
+  renderEducationTab();
+}
+
+function resetEducationEntryForm() {
+  educationChild.value = "자녀1";
+  educationCategory.value = "교재비";
+  educationTitle.value = "";
+  educationAmount.value = "";
+  educationDate.value = "";
+  setMemoFieldValue(educationMemo, "");
+}
+
+function addEducationEntry() {
+  const amount = formatInputNumber(educationAmount.value);
+  const title = educationTitle.value.trim();
+
+  if (!title || !amount) {
+    window.alert("내용과 금액을 입력해 주세요.");
+    return;
+  }
+
+  educationEntries.push({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    month: educationMonth,
+    child: educationChild.value,
+    category: educationCategory.value,
+    title,
+      amount,
+      date: formatShortDateInput(educationDate.value),
+      memo: buildMemoValue(educationMemo)
+    });
+
+  saveEducationEntries();
+  resetEducationEntryForm();
+  renderEducationTab();
+}
+
+function addQuickAcademyEntry() {
+  const academy = academies.find((item) => item.id === selectedAcademyId);
+  if (!academy) {
+    window.alert("등록된 학원을 선택해 주세요.");
+    return;
+  }
+
+  educationEntries.push({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    month: educationMonth,
+    child: academy.child,
+    category: academy.category,
+    title: academy.name,
+      amount: formatInputNumber(academyQuickAmount.value || academy.amount),
+      date: formatShortDateInput(academyQuickDate.value),
+      memo: buildMemoValue(academyQuickMemo) || academy.memo || ""
+    });
+
+  saveEducationEntries();
+  academyQuickDate.value = "";
+  setMemoFieldValue(academyQuickMemo, "");
+  renderEducationTab();
+}
+
+function setAppTab(tabName) {
+  currentAppTab = tabName;
+  localStorage.setItem(appTabStorageKey, tabName);
+
+  document.querySelectorAll(".app-tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === tabName);
+  });
+
+  rentalSection.classList.toggle("hidden", tabName !== "rental");
+  educationSection.classList.toggle("hidden", tabName !== "education");
+  dashboardSection.classList.toggle("hidden", tabName !== "dashboard");
+  reportSection.classList.toggle("hidden", tabName !== "report");
+
+  if (tabName === "education") {
+    renderEducationTab();
+  }
+
+  if (tabName === "dashboard") {
+    renderDashboardTab();
+  }
+}
+
+function updateHoldingInfo() {
+  if (!buyDate.value) {
+    holdYears.innerText = "-";
+    deductionRate.innerText = "-";
+    return;
+  }
+
+  const buy = new Date(buyDate.value);
+  const today = new Date();
+  const diffMs = today - buy;
+
+  if (Number.isNaN(diffMs) || diffMs < 0) {
+    holdYears.innerText = "-";
+    deductionRate.innerText = "-";
+    return;
+  }
+
+  const years = diffMs / (1000 * 60 * 60 * 24 * 365.25);
+  holdYears.innerText = `${years.toFixed(1)}년`;
+  deductionRate.innerText = getDeductionRate(years);
+}
+
+function renderTabs() {
+  tabs.innerHTML = "";
+
+  buildings.forEach((building, index) => {
+    const button = document.createElement("button");
+    button.innerText = building.name || `건물${index + 1}`;
+    if (index === current) {
+      button.classList.add("active");
+    }
+    button.onclick = () => {
+      save();
+      current = index;
+      load();
+    };
+    tabs.appendChild(button);
+  });
+
+  const add = document.createElement("button");
+  add.innerText = "+";
+  add.onclick = () => {
+    save();
+    buildings.push(newBuilding());
+    current = buildings.length - 1;
+    load();
+  };
+  tabs.appendChild(add);
+}
+
+function getRoomLabels() {
+  const labels = [];
+
+  [f1, f2, f3, f4, f5].forEach((floorField, floorIndex) => {
+    const count = parseNumber(floorField.value);
+    buildFloorRoomNumbers(floorIndex, count).forEach((roomNumber) => {
+      labels.push(`${roomNumber}호`);
+    });
+  });
+
+  return labels;
+}
+
+function parseExcludedRooms(value) {
+  return new Set(
+    String(value || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => Number(item))
+      .filter((item) => Number.isInteger(item) && item > 0)
+  );
+}
+
+function buildFloorRoomNumbers(floorIndex, count) {
+  const excludeInputs = [x1, x2, x3, x4, x5];
+  const excludes = parseExcludedRooms(excludeInputs[floorIndex]?.value);
+  const roomNumbers = [];
+  let candidate = 1;
+
+  while (roomNumbers.length < count) {
+    if (!excludes.has(candidate)) {
+      roomNumbers.push((floorIndex + 1) * 100 + candidate);
+    }
+    candidate += 1;
+  }
+
+  return roomNumbers;
+}
+
+function collectRoomsFromDom() {
+  return Array.from(document.querySelectorAll(".room")).map((room) => ({
+    j: room.querySelector(".j").checked,
+    w: room.querySelector(".w").checked,
+    v: room.querySelector(".v").checked,
+    expanded: !room.classList.contains("is-compact"),
+    d: formatInputNumber(room.querySelector(".d").value),
+    m: formatInputNumber(room.querySelector(".m").value),
+    tenantName: room.querySelector(".tenant-name").value,
+    tenantPhone: room.querySelector(".tenant-phone").value,
+    moveIn: room.querySelector(".move-in").value,
+    moveOut: room.querySelector(".move-out").value,
+    note: room.querySelector(".note").value
+  }));
+}
+
+function formatNumericInputs() {
+  document.querySelectorAll(".num, .d, .m").forEach((input) => {
+    if (document.activeElement !== input) {
+      input.value = formatInputNumber(input.value);
+    }
+  });
+}
+
+function save() {
+  const building = buildings[current];
+
+  building.name = buildingNameInput.value;
+  building.address = address.value;
+  building.price = price.value;
+  building.loan = loan.value;
+  building.rate = rate.value;
+  building.buyDate = buyDate.value;
+  building.floors = [f1.value, f2.value, f3.value, f4.value, f5.value];
+  building.floorExcludes = [x1.value, x2.value, x3.value, x4.value, x5.value];
+  building.floorCollapsed = [0, 1, 2, 3, 4].map((index) => {
+    const floorBox = document.querySelector(`.floor-box[data-floor="${index}"]`);
+    return floorBox ? floorBox.classList.contains("is-collapsed") : Boolean(building.floorCollapsed?.[index]);
+  });
+  building.propertyDetailsCollapsed = propertyDetails.classList.contains("collapsed");
+  building.floorSettingsCollapsed = floorSettings.classList.contains("collapsed");
+  building.rentRecords = building.rentRecords || {};
+  building.rooms = collectRoomsFromDom();
+
+  localStorage.setItem(storageKey, JSON.stringify(buildings));
+  calcPortfolio();
+  renderTabs();
+  renderDashboardTab();
+}
+
+function load() {
+  const building = buildings[current];
+
+  buildingNameInput.value = building.name;
+  address.value = building.address;
+  price.value = formatInputNumber(building.price);
+  loan.value = formatInputNumber(building.loan);
+  rate.value = building.rate;
+  buyDate.value = building.buyDate;
+
+  [f1, f2, f3, f4, f5].forEach((field, index) => {
+    field.value = building.floors[index];
+  });
+  [x1, x2, x3, x4, x5].forEach((field, index) => {
+    field.value = building.floorExcludes?.[index] || "";
+  });
+
+  setPropertyDetailsCollapsed(Boolean(building.propertyDetailsCollapsed));
+  setFloorSettingsCollapsed(Boolean(building.floorSettingsCollapsed));
+
+  generate();
+
+  document.querySelectorAll(".room").forEach((room, index) => {
+    const roomData = building.rooms[index];
+    if (!roomData) {
+      return;
+    }
+
+    room.querySelector(".j").checked = roomData.j;
+    room.querySelector(".w").checked = roomData.w;
+    room.querySelector(".v").checked = Boolean(roomData.v);
+    room.querySelector(".d").value = formatInputNumber(roomData.d);
+    room.querySelector(".m").value = formatInputNumber(roomData.m);
+    room.querySelector(".tenant-name").value = roomData.tenantName || "";
+    room.querySelector(".tenant-phone").value = roomData.tenantPhone || "";
+    room.querySelector(".move-in").value = roomData.moveIn || "";
+    room.querySelector(".move-out").value = roomData.moveOut || "";
+    room.querySelector(".note").value = roomData.note || "";
+    room.querySelector(".m").disabled = roomData.j || roomData.v;
+  });
+
+  formatNumericInputs();
+  updateHoldingInfo();
+  updateMap();
+  calc();
+  renderRentRecords();
+  renderTabs();
+  renderDashboardTab();
+}
+
+function generate() {
+  const existingRooms = collectRoomsFromDom();
+  const currentFloorCollapsed = [0, 1, 2, 3, 4].map((index) => {
+    const floorBox = document.querySelector(`.floor-box[data-floor="${index}"]`);
+    if (floorBox) {
+      return floorBox.classList.contains("is-collapsed");
+    }
+    return Boolean(buildings[current].floorCollapsed?.[index]);
+  });
+
+  rooms.innerHTML = "";
+
+  [f1, f2, f3, f4, f5].forEach((floorField, floorIndex) => {
+    const count = parseNumber(floorField.value);
+    if (!count) {
+      return;
+    }
+    const floorRoomNumbers = buildFloorRoomNumbers(floorIndex, count);
+
+    const box = document.createElement("div");
+    box.className = "floor-box";
+    box.dataset.floor = String(floorIndex);
+    if (currentFloorCollapsed[floorIndex]) {
+      box.classList.add("is-collapsed");
+    }
+    box.innerHTML = `
+      <div class="floor-box-head">
+        <div class="floor-header">${floorIndex + 1}층 호실</div>
+      </div>
+    `;
+
+    const wrap = document.createElement("div");
+    wrap.className = "rooms";
+
+    for (let roomNumber = 0; roomNumber < floorRoomNumbers.length; roomNumber += 1) {
+      const roomIndex = wrap.childElementCount + Array.from(rooms.children).reduce((sum, child) => {
+        const list = child.querySelector(".rooms");
+        return sum + (list ? list.childElementCount : 0);
+      }, 0);
+      const roomState = buildings[current].rooms[roomIndex] || existingRooms[roomIndex] || {};
+      const isJeonse = Boolean(roomState.j);
+      const isVacant = Boolean(roomState.v);
+      const isMonthly = roomState.w !== undefined ? Boolean(roomState.w) : (!isJeonse && !isVacant);
+      const isCompact = roomState.expanded !== true;
+
+      const card = document.createElement("div");
+      card.className = `room${isCompact ? " is-compact" : ""}`;
+      card.innerHTML = `
+        <div class="room-head">
+          <div class="room-title-wrap">
+            <div class="room-title">${floorRoomNumbers[roomNumber]}호</div>
+            <button type="button" class="room-toggle">${isCompact ? "상세" : "닫기"}</button>
+          </div>
+          <div class="room-type">
+            <label class="room-type-chip"><input type="checkbox" class="j" ${isJeonse ? "checked" : ""}> 전세</label>
+            <label class="room-type-chip"><input type="checkbox" class="w" ${isMonthly ? "checked" : ""}> 월세</label>
+            <label class="room-type-chip"><input type="checkbox" class="v" ${isVacant ? "checked" : ""}> 공실</label>
+          </div>
+        </div>
+        <div class="room-top">
+          <div class="mini-row">
+            <label>이름</label>
+            <input class="tenant-name" value="${roomState.tenantName || ""}">
+          </div>
+          <div class="mini-row">
+            <label>전화</label>
+            <input class="tenant-phone" value="${roomState.tenantPhone || ""}">
+          </div>
+        </div>
+        <div class="room-grid">
+          <div class="mini-row">
+            <label>보증금</label>
+            <input class="d" value="${formatInputNumber(roomState.d)}">
+          </div>
+          <div class="mini-row">
+            <label>월세</label>
+            <input class="m" value="${formatInputNumber(roomState.m)}" ${(isJeonse || isVacant) ? "disabled" : ""}>
+          </div>
+        </div>
+        <div class="room-details">
+          <div class="room-grid">
+          <div class="mini-row">
+            <label>입주일</label>
+            <input type="date" class="move-in" value="${roomState.moveIn || ""}">
+          </div>
+          <div class="mini-row">
+            <label>퇴실일</label>
+            <input type="date" class="move-out" value="${roomState.moveOut || ""}">
+          </div>
+          </div>
+          <div class="room-note">
+            <label>특이사항</label>
+            <textarea class="note" rows="3">${roomState.note || ""}</textarea>
+          </div>
+        </div>
+      `;
+
+      wrap.appendChild(card);
+    }
+
+    box.appendChild(wrap);
+    rooms.appendChild(box);
+  });
+
+  bind();
+  bindFloorToggles();
+  calc();
+  renderRentRecords();
+}
+
+function bindFloorToggles() {
+  document.querySelectorAll(".floor-box").forEach((floorBox) => {
+    const header = floorBox.querySelector(".floor-header");
+    if (!header) {
+      return;
+    }
+
+    header.onclick = () => {
+      floorBox.classList.toggle("is-collapsed");
+      save();
+    };
+  });
+}
+
+function bind() {
+  document.querySelectorAll(".room").forEach((room) => {
+    const jeonse = room.querySelector(".j");
+    const monthly = room.querySelector(".w");
+    const vacant = room.querySelector(".v");
+    const monthlyRent = room.querySelector(".m");
+    const roomToggle = room.querySelector(".room-toggle");
+    const roomTitle = room.querySelector(".room-title")?.innerText || "호실";
+
+    if (roomToggle) {
+      roomToggle.onclick = () => {
+        const compact = room.classList.toggle("is-compact");
+        roomToggle.innerText = compact ? "상세" : "닫기";
+        save();
+      };
+    }
+
+    const previousState = {
+      j: jeonse.checked,
+      w: monthly.checked,
+      v: vacant.checked
+    };
+
+    const restorePreviousState = () => {
+      jeonse.checked = previousState.j;
+      monthly.checked = previousState.w;
+      vacant.checked = previousState.v;
+      monthlyRent.disabled = previousState.j || previousState.v;
+    };
+
+    const syncPreviousState = () => {
+      previousState.j = jeonse.checked;
+      previousState.w = monthly.checked;
+      previousState.v = vacant.checked;
+    };
+
+    const confirmRoomTypeChange = (nextLabel) => {
+      const currentLabel = previousState.v ? "공실" : previousState.j ? "전세" : "월세";
+      return window.confirm(`${roomTitle} 상태를 ${currentLabel}에서 ${nextLabel}(으)로 변경할까요?`);
+    };
+
+    jeonse.onclick = () => {
+      if (jeonse.checked && !previousState.j && !confirmRoomTypeChange("전세")) {
+        restorePreviousState();
+        return;
+      }
+
+      if (jeonse.checked) {
+        monthly.checked = false;
+        vacant.checked = false;
+        monthlyRent.value = "";
+        monthlyRent.disabled = true;
+      } else {
+        if (!vacant.checked) {
+          monthly.checked = true;
+          monthlyRent.disabled = false;
+        }
+      }
+      syncPreviousState();
+      calc();
+      save();
+    };
+
+    monthly.onclick = () => {
+      if (monthly.checked && !previousState.w && !confirmRoomTypeChange("월세")) {
+        restorePreviousState();
+        return;
+      }
+
+      if (monthly.checked) {
+        jeonse.checked = false;
+        vacant.checked = false;
+        monthlyRent.disabled = false;
+      } else {
+        if (!vacant.checked) {
+          jeonse.checked = true;
+          monthlyRent.value = "";
+          monthlyRent.disabled = true;
+        }
+      }
+      syncPreviousState();
+      calc();
+      save();
+    };
+
+    vacant.onclick = () => {
+      if (vacant.checked && !previousState.v && !confirmRoomTypeChange("공실")) {
+        restorePreviousState();
+        return;
+      }
+
+      if (vacant.checked) {
+        jeonse.checked = false;
+        monthly.checked = false;
+        monthlyRent.value = "";
+        monthlyRent.disabled = true;
+      } else {
+        monthly.checked = true;
+        monthlyRent.disabled = false;
+      }
+      syncPreviousState();
+      calc();
+      save();
+    };
+  });
+}
+
+function calc() {
+  let rent = 0;
+  let deposit = 0;
+
+  formatNumericInputs();
+
+  document.querySelectorAll(".room").forEach((room) => {
+    deposit += parseNumber(room.querySelector(".d").value);
+
+    if (room.querySelector(".w").checked) {
+      rent += parseNumber(room.querySelector(".m").value);
+    }
+  });
+
+  depositSum.innerText = formatCurrency(deposit);
+  rentSum.innerText = formatCurrency(rent);
+
+  const monthlyInterest = parseNumber(loan.value) * (parseNumber(rate.value) / 100) / 12;
+  interest.innerText = formatCurrency(monthlyInterest);
+  annualInterest.innerText = formatCurrency(monthlyInterest * 12);
+
+  updateHoldingInfo();
+  calcPortfolio();
+}
+
+function calcPortfolio() {
+  let portfolioDeposit = 0;
+  let portfolioRent = 0;
+  let portfolioLoan = 0;
+  let portfolioInterest = 0;
+  const portfolioRows = [];
+
+  buildings.forEach((building, index) => {
+    const sourceRooms = index === current ? collectRoomsFromDom() : (building.rooms || []);
+    const loanAmount = parseNumber(building.loan);
+    const rateAmount = parseNumber(building.rate);
+    let buildingDeposit = 0;
+    let buildingRent = 0;
+
+    portfolioLoan += loanAmount;
+    portfolioInterest += loanAmount * (rateAmount / 100) / 12;
+
+    sourceRooms.forEach((room) => {
+      const depositAmount = parseNumber(room.d);
+      buildingDeposit += depositAmount;
+      portfolioDeposit += depositAmount;
+      if (room.w) {
+        const rentAmount = parseNumber(room.m);
+        buildingRent += rentAmount;
+        portfolioRent += rentAmount;
+      }
+    });
+
+    portfolioRows.push({
+      name: building.name || `건물${index + 1}`,
+      deposit: buildingDeposit,
+      rent: buildingRent,
+      loan: loanAmount
+    });
+  });
+
+  const net = portfolioRent - portfolioInterest;
+
+  portfolioList.innerHTML = `
+    <div class="portfolio-list">
+      <div class="portfolio-row header">
+        <div>건물명</div>
+        <div>보증금</div>
+        <div>월세</div>
+        <div>대출</div>
+      </div>
+      ${portfolioRows.map((row) => `
+        <div class="portfolio-row">
+          <div class="portfolio-name">${row.name}</div>
+          <div>${formatCurrency(row.deposit)}</div>
+          <div>${formatCurrency(row.rent)}</div>
+          <div>${formatCurrency(row.loan)}</div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+
+  document.getElementById("totalDeposit").innerText = formatCurrency(portfolioDeposit);
+  document.getElementById("totalRent").innerText = formatCurrency(portfolioRent);
+  document.getElementById("totalLoan").innerText = formatCurrency(portfolioLoan);
+  document.getElementById("totalInterest").innerText = formatCurrency(portfolioInterest);
+  document.getElementById("totalNet").innerText = formatCurrency(net);
+}
+
+function upsertRentRecordAmount(roomLabel, month, amount) {
+  const selectedYear = "2026";
+  const buildingData = buildings[current];
+  const existingRecord = buildingData.rentRecords?.[selectedYear]?.[roomLabel]?.[month];
+  const paidDate = typeof existingRecord === "object" && existingRecord !== null ? existingRecord.paidDate : "";
+
+  buildingData.rentRecords = buildingData.rentRecords || {};
+  buildingData.rentRecords[selectedYear] = buildingData.rentRecords[selectedYear] || {};
+  buildingData.rentRecords[selectedYear][roomLabel] = buildingData.rentRecords[selectedYear][roomLabel] || {};
+  buildingData.rentRecords[selectedYear][roomLabel][month] = {
+    amount,
+    paidDate
+  };
+  localStorage.setItem(storageKey, JSON.stringify(buildings));
+  updateRentRecordMonthTotal(selectedYear, month);
+}
+
+function clearRentRecordAmount(roomLabel, month) {
+  const selectedYear = "2026";
+  const buildingData = buildings[current];
+  const existingRecord = buildingData.rentRecords?.[selectedYear]?.[roomLabel]?.[month];
+  const paidDate = typeof existingRecord === "object" && existingRecord !== null ? existingRecord.paidDate : "";
+
+  buildingData.rentRecords = buildingData.rentRecords || {};
+  buildingData.rentRecords[selectedYear] = buildingData.rentRecords[selectedYear] || {};
+  buildingData.rentRecords[selectedYear][roomLabel] = buildingData.rentRecords[selectedYear][roomLabel] || {};
+  buildingData.rentRecords[selectedYear][roomLabel][month] = {
+    amount: "",
+    paidDate
+  };
+  localStorage.setItem(storageKey, JSON.stringify(buildings));
+  updateRentRecordMonthTotal(selectedYear, month);
+}
+
+function getMonthlyInterestRecord(year, month) {
+  const building = buildings[current];
+  return building.rentExpenses?.[year]?.[month] || "";
+}
+
+function upsertMonthlyInterest(year, month, amount) {
+  const building = buildings[current];
+  building.rentExpenses = building.rentExpenses || {};
+  building.rentExpenses[year] = building.rentExpenses[year] || {};
+  building.rentExpenses[year][month] = amount;
+  localStorage.setItem(storageKey, JSON.stringify(buildings));
+  updateRentRecordMonthSummary(year, month);
+}
+
+function renderRentRecords() {
+  const building = buildings[current];
+  const year = "2026";
+  const hasLoan = parseNumber(building.loan) > 0;
+  rentRecordsTitle.innerText = getRentRecordsHeading();
+  const roomLabels = getRoomLabels();
+  const sourceRooms = collectRoomsFromDom();
+  const monthlyRooms = sourceRooms
+    .map((room, index) => ({
+      label: roomLabels[index],
+      room
+    }))
+    .filter((item) => item.room.w && !item.room.v);
+
+  building.rentRecords = building.rentRecords || {};
+  building.rentRecords[year] = building.rentRecords[year] || {};
+
+  if (monthlyRooms.length === 0) {
+    rentRecordsContainer.innerHTML = '<div class="rent-records-empty">월세로 설정된 호실이 있으면 1년치 수납 기록을 입력할 수 있습니다.</div>';
+    return;
+  }
+
+  const monthHeaders = Array.from({ length: 12 }, (_, index) => `${index + 1}월`);
+  const rows = monthlyRooms.map(({ label, room }) => {
+    const baseRent = parseNumber(room.m);
+    const yearlyRecord = building.rentRecords[year][label] || {};
+    const cells = monthHeaders.map((_, monthIndex) => {
+      const key = String(monthIndex + 1).padStart(2, "0");
+      const savedRecord = yearlyRecord[key];
+      const savedAmount = typeof savedRecord === "object" && savedRecord !== null ? savedRecord.amount : savedRecord;
+      const savedPaidDate = typeof savedRecord === "object" && savedRecord !== null ? savedRecord.paidDate : "";
+      return `
+        <td>
+          <div class="rent-record-cell" data-room="${label}" data-month="${key}" data-base-rent="${baseRent}">
+            <input class="rent-record-input" data-room="${label}" data-month="${key}" value="${formatInputNumber(savedAmount)}" placeholder="금액">
+            <input class="rent-record-date" data-room="${label}" data-month="${key}" value="${formatShortDateInput(savedPaidDate || "")}" placeholder="YY-MM-DD" inputmode="numeric" maxlength="8">
+          </div>
+        </td>
+      `;
+    }).join("");
+    return `
+      <tr>
+        <td>
+          <div class="rent-room-meta">
+            <strong>${label}</strong>
+            <span>${formatCurrency(parseNumber(room.m))}</span>
+          </div>
+        </td>
+        ${cells}
+      </tr>
+    `;
+  }).join("");
+
+  const totals = monthHeaders.map((_, monthIndex) => {
+    const key = String(monthIndex + 1).padStart(2, "0");
+    const total = monthlyRooms.reduce((sum, { label }) => {
+      const monthRecord = building.rentRecords[year][label]?.[key];
+      const amount = typeof monthRecord === "object" && monthRecord !== null ? monthRecord.amount : monthRecord;
+      return sum + parseNumber(amount);
+    }, 0);
+    return `<td data-total-month="${key}"><b>${formatCurrency(total)}</b></td>`;
+  }).join("");
+
+  const interestRow = monthHeaders.map((_, monthIndex) => {
+    const key = String(monthIndex + 1).padStart(2, "0");
+    return `
+      <td>
+        <input
+          class="rent-interest-input"
+          data-month="${key}"
+          value="${formatInputNumber(getMonthlyInterestRecord(year, key))}"
+          placeholder="이자"
+        >
+      </td>
+    `;
+  }).join("");
+
+  const netRow = monthHeaders.map((_, monthIndex) => {
+    const key = String(monthIndex + 1).padStart(2, "0");
+    const total = monthlyRooms.reduce((sum, { label }) => {
+      const monthRecord = building.rentRecords[year][label]?.[key];
+      const amount = typeof monthRecord === "object" && monthRecord !== null ? monthRecord.amount : monthRecord;
+      return sum + parseNumber(amount);
+    }, 0);
+    const interest = hasLoan ? parseNumber(getMonthlyInterestRecord(year, key)) : 0;
+    return `<td data-net-month="${key}"><b>${formatCurrency(total - interest)}</b></td>`;
+  }).join("");
+
+  rentRecordsContainer.innerHTML = `
+    <div class="rent-records-table-wrap">
+      <table class="rent-records-table">
+        <thead>
+          <tr>
+            <th class="rent-room-col">호실</th>
+            ${monthHeaders.map((month) => `<th>${month}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+          <tr>
+            <td><b>합계</b></td>
+            ${totals}
+          </tr>
+          ${hasLoan ? `
+          <tr>
+            <td><b>대출이자</b></td>
+            ${interestRow}
+          </tr>
+          ` : ""}
+          <tr>
+            <td><b>순수익</b></td>
+            ${netRow}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  document.querySelectorAll(".rent-record-input").forEach((input) => {
+    input.addEventListener("input", () => {
+      const selectedYear = "2026";
+      const roomLabel = input.dataset.room;
+      const month = input.dataset.month;
+      const formattedValue = formatInputNumber(input.value);
+      input.value = formattedValue;
+      upsertRentRecordAmount(roomLabel, month, formattedValue);
+    });
+  });
+
+  document.querySelectorAll(".rent-record-date").forEach((input) => {
+    input.addEventListener("input", () => {
+      const selectedYear = "2026";
+      const roomLabel = input.dataset.room;
+      const month = input.dataset.month;
+      const buildingData = buildings[current];
+      const existingRecord = buildingData.rentRecords?.[selectedYear]?.[roomLabel]?.[month];
+      const amount = typeof existingRecord === "object" && existingRecord !== null ? existingRecord.amount : formatInputNumber(existingRecord);
+      const formattedDate = formatShortDateInput(input.value);
+
+      buildingData.rentRecords = buildingData.rentRecords || {};
+      buildingData.rentRecords[selectedYear] = buildingData.rentRecords[selectedYear] || {};
+      buildingData.rentRecords[selectedYear][roomLabel] = buildingData.rentRecords[selectedYear][roomLabel] || {};
+      buildingData.rentRecords[selectedYear][roomLabel][month] = {
+        amount,
+        paidDate: formattedDate
+      };
+      input.value = formattedDate;
+      localStorage.setItem(storageKey, JSON.stringify(buildings));
+    });
+  });
+
+  document.querySelectorAll(".rent-interest-input").forEach((input) => {
+    input.addEventListener("input", () => {
+      const month = input.dataset.month;
+      const formattedValue = formatInputNumber(input.value);
+      input.value = formattedValue;
+      upsertMonthlyInterest(year, month, formattedValue);
+    });
+  });
+
+  document.querySelectorAll(".rent-record-cell").forEach((cell) => {
+    cell.addEventListener("click", (event) => {
+      if (event.target.classList.contains("rent-record-date")) {
+        return;
+      }
+
+      const amountInput = cell.querySelector(".rent-record-input");
+      const roomLabel = cell.dataset.room;
+      const month = cell.dataset.month;
+      const baseRent = formatInputNumber(cell.dataset.baseRent);
+      const currentValue = amountInput.value.trim();
+
+      if (currentValue) {
+        if (window.confirm(`${roomLabel} ${Number(month)}월 입력 금액을 삭제할까요?`)) {
+          amountInput.value = "";
+          clearRentRecordAmount(roomLabel, month);
+        }
+        return;
+      }
+
+      amountInput.value = baseRent;
+      upsertRentRecordAmount(roomLabel, month, baseRent);
+    });
+  });
+}
+
+function updateRentRecordMonthTotal(year, month) {
+  const building = buildings[current];
+  const monthTotalCell = document.querySelector(`[data-total-month="${month}"] b`);
+
+  if (!monthTotalCell) {
+    return;
+  }
+
+  const monthTotal = Object.values(building.rentRecords?.[year] || {}).reduce((sum, roomRecord) => {
+    const monthRecord = roomRecord?.[month];
+    const amount = typeof monthRecord === "object" && monthRecord !== null ? monthRecord.amount : monthRecord;
+    return sum + parseNumber(amount);
+  }, 0);
+
+  monthTotalCell.innerText = formatCurrency(monthTotal);
+  updateRentRecordMonthSummary(year, month);
+}
+
+function updateRentRecordMonthSummary(year, month) {
+  const totalCell = document.querySelector(`[data-total-month="${month}"] b`);
+  const netCell = document.querySelector(`[data-net-month="${month}"] b`);
+
+  if (!totalCell || !netCell) {
+    return;
+  }
+
+  const building = buildings[current];
+  const monthTotal = Object.values(building.rentRecords?.[year] || {}).reduce((sum, roomRecord) => {
+    const monthRecord = roomRecord?.[month];
+    const amount = typeof monthRecord === "object" && monthRecord !== null ? monthRecord.amount : monthRecord;
+    return sum + parseNumber(amount);
+  }, 0);
+  const interest = parseNumber(getMonthlyInterestRecord(year, month));
+
+  totalCell.innerText = formatCurrency(monthTotal);
+  netCell.innerText = formatCurrency(monthTotal - interest);
+}
+
+function printRentRecords() {
+  const sourceTable = rentRecordsContainer.querySelector(".rent-records-table");
+  const contentWidth = sourceTable ? sourceTable.scrollWidth + 24 : 1100;
+  const printableWidth = 1000;
+  const printScale = Math.min(1, printableWidth / contentWidth);
+  const printHost = document.createElement("div");
+  printHost.className = "rent-record-print-root";
+  printHost.style.setProperty("--print-content-width", `${contentWidth}px`);
+  printHost.style.setProperty("--print-scale", `${printScale}`);
+  printHost.innerHTML = `
+    <div class="rent-records">
+      <div class="rent-records-header">
+        <h3 style="margin:0;">${getRentRecordsHeading()}</h3>
+      </div>
+      ${rentRecordsContainer.outerHTML}
+    </div>
+  `;
+
+  document.body.appendChild(printHost);
+  document.body.classList.add("print-rent-records");
+  const cleanup = () => {
+    document.body.classList.remove("print-rent-records");
+    printHost.remove();
+    window.removeEventListener("afterprint", cleanup);
+  };
+
+  window.addEventListener("afterprint", cleanup);
+  window.print();
+}
+
+function exportRentRecordsPdf() {
+  const previousTitle = document.title;
+  const buildingName = buildingNameInput.value.trim() || "다가구-통합-관리";
+  document.title = `${buildingName}-2026년-월세기록`;
+  printRentRecords();
+
+  const restoreTitle = () => {
+    document.title = previousTitle;
+    window.removeEventListener("afterprint", restoreTitle);
+  };
+
+  window.addEventListener("afterprint", restoreTitle);
+}
+
+function backupData() {
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    "-",
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0")
+  ].join("");
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    scope: "all-buildings",
+    storageKey,
+    current,
+    buildings,
+    academies,
+    educationEntries,
+    currentAppTab
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `다가구-통합관리-전체백업-${stamp}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function importBackupData(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result || "{}"));
+      const importedBuildings = Array.isArray(parsed.buildings) ? parsed.buildings : null;
+      if (!importedBuildings || importedBuildings.length === 0) {
+        window.alert("불러올 수 있는 백업 데이터가 없습니다.");
+        return;
+      }
+
+      if (!window.confirm("현재 데이터를 백업 파일 내용으로 바꿀까요?")) {
+        return;
+      }
+
+      buildings = importedBuildings;
+      current = Math.min(Number(parsed.current) || 0, buildings.length - 1);
+      academies = Array.isArray(parsed.academies) ? parsed.academies : [];
+      educationEntries = Array.isArray(parsed.educationEntries) ? parsed.educationEntries : [];
+      currentAppTab = parsed.currentAppTab || "rental";
+      localStorage.setItem(storageKey, JSON.stringify(buildings));
+      localStorage.setItem(academyStorageKey, JSON.stringify(academies));
+      localStorage.setItem(educationStorageKey, JSON.stringify(educationEntries));
+      localStorage.setItem(appTabStorageKey, currentAppTab);
+      load();
+      setAppTab(currentAppTab);
+    } catch (error) {
+      window.alert("백업 파일을 읽지 못했습니다.");
+    } finally {
+      importDataInput.value = "";
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.addEventListener("input", (event) => {
+  if (event.target.matches(".rent-record-input, .rent-interest-input")) {
+    return;
+  }
+
+  if (event.target === educationDate) {
+    educationDate.value = formatShortDateInput(educationDate.value);
+  }
+
+  if (event.target === academyQuickDate) {
+    academyQuickDate.value = formatShortDateInput(academyQuickDate.value);
+  }
+
+  if (event.target.matches(".tenant-phone")) {
+    event.target.value = formatPhoneNumber(event.target.value);
+  }
+
+  if (event.target.matches(".num, .d, .m")) {
+    const formatted = formatInputNumber(event.target.value);
+    event.target.value = formatted;
+
+    if (typeof event.target.selectionStart === "number") {
+      const end = event.target.value.length;
+      event.target.setSelectionRange(end, end);
+    }
+  }
+
+  if (event.target === buyDate) {
+    updateHoldingInfo();
+  }
+
+  if (event.target === address) {
+    updateMap();
+  }
+
+  if (event.target === buildingNameInput) {
+    rentRecordsTitle.innerText = getRentRecordsHeading();
+  }
+
+  calc();
+  save();
+  renderDashboardTab();
+});
+
+function setFloorSettingsCollapsed(collapsed) {
+  floorSettings.classList.toggle("collapsed", collapsed);
+  floorSectionTitle.querySelector("h3").classList.toggle("hidden", collapsed);
+  toggleFloorsButton.innerText = collapsed ? "층별 호실 설정 열기" : "층별 호실 설정 접기";
+}
+
+function setPropertyDetailsCollapsed(collapsed) {
+  propertyDetails.classList.toggle("collapsed", collapsed);
+  togglePropertyDetailsButton.innerText = collapsed ? "매입 정보 열기" : "매입 정보 접기";
+}
+
+togglePropertyDetailsButton.addEventListener("click", () => {
+  const nextCollapsed = !propertyDetails.classList.contains("collapsed");
+  setPropertyDetailsCollapsed(nextCollapsed);
+  save();
+});
+
+toggleFloorsButton.addEventListener("click", () => {
+  const nextCollapsed = !floorSettings.classList.contains("collapsed");
+  setFloorSettingsCollapsed(nextCollapsed);
+  save();
+});
+
+printRentRecordsButton.addEventListener("click", () => {
+  printRentRecords();
+});
+
+exportPdfButton.addEventListener("click", () => {
+  exportRentRecordsPdf();
+});
+
+document.querySelectorAll(".app-tab").forEach((button) => {
+  button.addEventListener("click", () => {
+    setAppTab(button.dataset.tab);
+  });
+});
+
+backupDataButton.addEventListener("click", () => {
+  backupData();
+});
+
+importDataButton.addEventListener("click", () => {
+  importDataInput.click();
+});
+
+importDataInput.addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  if (file) {
+    importBackupData(file);
+  }
+});
+
+educationPrevMonth.addEventListener("click", () => {
+  shiftEducationMonth(-1);
+  renderEducationTab();
+});
+
+educationNextMonth.addEventListener("click", () => {
+  shiftEducationMonth(1);
+  renderEducationTab();
+});
+
+dashboardPrevMonth.addEventListener("click", () => {
+  shiftDashboardMonth(-1);
+  renderDashboardTab();
+});
+
+dashboardNextMonth.addEventListener("click", () => {
+  shiftDashboardMonth(1);
+  renderDashboardTab();
+});
+
+document.querySelectorAll("[data-category-filter]").forEach((button) => {
+  button.addEventListener("click", () => {
+    educationCategoryFilter = button.dataset.categoryFilter;
+    document.querySelectorAll("[data-category-filter]").forEach((item) => {
+      item.classList.toggle("active", item.dataset.categoryFilter === educationCategoryFilter);
+    });
+    renderEducationTab();
+  });
+});
+
+toggleAcademySectionButton.addEventListener("click", () => {
+  setEducationSubsectionCollapsed("academy", !academySectionCollapsed);
+});
+
+toggleDirectEducationSectionButton.addEventListener("click", () => {
+  setEducationSubsectionCollapsed("direct", !directEducationSectionCollapsed);
+});
+
+educationTodayButton.addEventListener("click", () => {
+  const today = new Date();
+  educationDate.value = formatShortDateInput(
+    `${String(today.getFullYear()).slice(2)}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`
+  );
+});
+
+academyQuickTodayButton.addEventListener("click", () => {
+  const today = new Date();
+  academyQuickDate.value = formatShortDateInput(
+    `${String(today.getFullYear()).slice(2)}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`
+  );
+});
+
+addEducationEntryButton.addEventListener("click", () => {
+  addEducationEntry();
+});
+
+addAcademyButton.addEventListener("click", () => {
+  addAcademy();
+});
+
+educationColumns.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest(".education-delete-button");
+  if (deleteButton) {
+    deleteEducationEntry(deleteButton.dataset.entryId);
+  }
+});
+
+academyList.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest(".academy-action-button.delete");
+  if (deleteButton) {
+    deleteAcademy(deleteButton.dataset.academyId);
+  }
+});
+
+academyQuickButtons.addEventListener("click", (event) => {
+  const button = event.target.closest(".academy-quick-button");
+  if (button) {
+    selectedAcademyId = button.dataset.academyId;
+    populateAcademyQuickSelect();
+    return;
+  }
+
+  const addButton = event.target.closest(".academy-quick-add-button");
+  if (addButton) {
+    const selectedAcademy = academies.find((academy) => academy.id === selectedAcademyId);
+    if (!selectedAcademy || selectedAcademy.child !== addButton.dataset.child) {
+      window.alert(`${addButton.dataset.child} 학원을 먼저 선택해 주세요.`);
+      return;
+    }
+    addQuickAcademyEntry();
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const memoChoice = event.target.closest(".memo-choice");
+  if (memoChoice) {
+    toggleMemoChoice(memoChoice.dataset.target, memoChoice.dataset.value);
+  }
+});
+
+if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
+  document.body.classList.add("standalone-mode");
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      // Keep the app usable even if service worker registration fails.
+    });
+  });
+}
+
+load();
+setAppTab(currentAppTab);
