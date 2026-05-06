@@ -253,7 +253,8 @@ async function refreshFromRemoteSnapshot(force = false) {
     const buildingCount = Array.isArray(parsedSnapshot?.buildings) ? parsedSnapshot.buildings.length : 0;
     const academyCount = Array.isArray(parsedSnapshot?.academies) ? parsedSnapshot.academies.length : 0;
     const entryCount = Array.isArray(parsedSnapshot?.educationEntries) ? parsedSnapshot.educationEntries.length : 0;
-    showAuthMessage(`원격 데이터로 새로고침했습니다. 기준 시각: ${syncedAtLabel} / 건물 ${buildingCount}개 / 학원 ${academyCount}개 / 교육비 ${entryCount}건`);
+    const firstBuildingName = parsedSnapshot?.buildings?.[0]?.name || "(건물명 없음)";
+    showAuthMessage(`원격 데이터로 새로고침했습니다. 기준 시각: ${syncedAtLabel} / 건물 ${buildingCount}개 / 첫 건물명: ${firstBuildingName} / 학원 ${academyCount}개 / 교육비 ${entryCount}건`);
   } catch (error) {
     disableRemoteSyncWithMessage(`Supabase 데이터 새로고침 중 오류가 발생했습니다: ${error.message || error}`);
   }
