@@ -42,7 +42,7 @@ function formatCurrency(value) {
 function formatKoreanCurrencyText(value) {
   const number = Math.floor(parseNumber(value));
   if (!number) {
-    return "-";
+    return "( - )";
   }
 
   const units = ["", "만", "억", "조"];
@@ -71,7 +71,7 @@ function formatKoreanCurrencyText(value) {
     unitIndex += 1;
   }
 
-  return `${parts.join(" ")}원`;
+  return `(${parts.join(" ")}원)`;
 }
 
 function parseNumber(value) {
