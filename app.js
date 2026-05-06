@@ -2,6 +2,7 @@ const storageKey = "b";
 const educationStorageKey = "educationExpenses";
 const academyStorageKey = "educationAcademies";
 const appTabStorageKey = "appTab";
+const syncMetaKey = "appSyncMeta";
 const buildingNameInput = document.getElementById("buildingName");
 const supabaseConfig = window.SUPABASE_CONFIG || {};
 const isSupabaseConfigured = Boolean(
@@ -31,6 +32,7 @@ let appBooted = false;
 let remoteSyncTimer = null;
 let remoteSyncAvailable = true;
 let syncMessageShown = false;
+let localSnapshotSyncedAt = localStorage.getItem(syncMetaKey) || "";
 
 function newBuilding() {
   return {
@@ -54,16 +56,21 @@ function newBuilding() {
   };
 }
 
-function persistLocalState() {
+function persistLocalState(markDirty = true) {
   localStorage.setItem(storageKey, JSON.stringify(buildings));
   localStorage.setItem(academyStorageKey, JSON.stringify(academies));
   localStorage.setItem(educationStorageKey, JSON.stringify(educationEntries));
   localStorage.setItem(appTabStorageKey, currentAppTab);
+  if (markDirty) {
+    localSnapshotSyncedAt = new Date().toISOString();
+    localStorage.setItem(syncMetaKey, localSnapshotSyncedAt);
+  }
 }
 
 function createAppSnapshot() {
   return {
     version: 1,
+    syncedAt: localSnapshotSyncedAt || new Date().toISOString(),
     current,
     currentAppTab,
     buildings,
@@ -84,7 +91,41 @@ function applyAppSnapshot(snapshot) {
   educationEntries = Array.isArray(snapshot.educationEntries) ? snapshot.educationEntries : [];
   current = Math.min(Number(snapshot.current) || 0, Math.max(buildings.length - 1, 0));
   currentAppTab = snapshot.currentAppTab || "rental";
-  persistLocalState();
+  localSnapshotSyncedAt = snapshot.syncedAt || new Date().toISOString();
+  localStorage.setItem(syncMetaKey, localSnapshotSyncedAt);
+  persistLocalState(false);
+}
+
+function snapshotHasContent(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return false;
+  }
+
+  if (Array.isArray(snapshot.educationEntries) && snapshot.educationEntries.length > 0) {
+    return true;
+  }
+
+  if (Array.isArray(snapshot.academies) && snapshot.academies.length > 0) {
+    return true;
+  }
+
+  if (!Array.isArray(snapshot.buildings) || snapshot.buildings.length === 0) {
+    return false;
+  }
+
+  return snapshot.buildings.some((building) => {
+    if (!building || typeof building !== "object") {
+      return false;
+    }
+
+    return Boolean(
+      String(building.name || "").trim() ||
+      String(building.address || "").trim() ||
+      parseNumber(building.price) ||
+      parseNumber(building.loan) ||
+      (Array.isArray(building.rooms) && building.rooms.length > 0)
+    );
+  });
 }
 
 function canUseRemoteSync() {
@@ -240,9 +281,15 @@ async function applyAuthenticatedState(session) {
 
     try {
       const remoteSnapshot = await fetchRemoteAppState();
-      if (remoteSnapshot) {
+      const remoteHasContent = snapshotHasContent(remoteSnapshot);
+      const localSnapshot = createAppSnapshot();
+      const localHasContent = snapshotHasContent(localSnapshot);
+      const remoteTime = remoteSnapshot?.syncedAt ? new Date(remoteSnapshot.syncedAt).getTime() : 0;
+      const localTime = localSnapshotSyncedAt ? new Date(localSnapshotSyncedAt).getTime() : 0;
+
+      if (remoteHasContent && remoteTime >= localTime) {
         applyAppSnapshot(remoteSnapshot);
-      } else {
+      } else if (localHasContent) {
         await pushRemoteAppState();
       }
     } catch (syncError) {
