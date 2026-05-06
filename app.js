@@ -28,6 +28,9 @@ let dashboardMonth = `${initialDashboardDate.getFullYear()}-${String(initialDash
 let currentSession = null;
 let currentHouseholdId = "";
 let appBooted = false;
+let remoteSyncTimer = null;
+let remoteSyncAvailable = true;
+let syncMessageShown = false;
 
 function newBuilding() {
   return {
@@ -49,6 +52,104 @@ function newBuilding() {
     rentExpenses: {},
     rooms: []
   };
+}
+
+function persistLocalState() {
+  localStorage.setItem(storageKey, JSON.stringify(buildings));
+  localStorage.setItem(academyStorageKey, JSON.stringify(academies));
+  localStorage.setItem(educationStorageKey, JSON.stringify(educationEntries));
+  localStorage.setItem(appTabStorageKey, currentAppTab);
+}
+
+function createAppSnapshot() {
+  return {
+    version: 1,
+    current,
+    currentAppTab,
+    buildings,
+    academies,
+    educationEntries
+  };
+}
+
+function applyAppSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return;
+  }
+
+  buildings = Array.isArray(snapshot.buildings) && snapshot.buildings.length > 0
+    ? snapshot.buildings
+    : [newBuilding()];
+  academies = Array.isArray(snapshot.academies) ? snapshot.academies : [];
+  educationEntries = Array.isArray(snapshot.educationEntries) ? snapshot.educationEntries : [];
+  current = Math.min(Number(snapshot.current) || 0, Math.max(buildings.length - 1, 0));
+  currentAppTab = snapshot.currentAppTab || "rental";
+  persistLocalState();
+}
+
+function canUseRemoteSync() {
+  return Boolean(supabaseClient && currentHouseholdId && remoteSyncAvailable);
+}
+
+async function fetchRemoteAppState() {
+  if (!canUseRemoteSync()) {
+    return null;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("app_states")
+    .select("payload")
+    .eq("household_id", currentHouseholdId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.payload || null;
+}
+
+async function pushRemoteAppState() {
+  if (!canUseRemoteSync()) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("app_states")
+    .upsert({
+      household_id: currentHouseholdId,
+      payload: createAppSnapshot(),
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: "household_id"
+    });
+
+  if (error) {
+    throw error;
+  }
+}
+
+function disableRemoteSyncWithMessage(message) {
+  remoteSyncAvailable = false;
+  if (!syncMessageShown) {
+    showAuthMessage(message);
+    syncMessageShown = true;
+  }
+}
+
+function queueRemoteSync() {
+  if (!canUseRemoteSync()) {
+    return;
+  }
+
+  clearTimeout(remoteSyncTimer);
+  remoteSyncTimer = window.setTimeout(async () => {
+    try {
+      await pushRemoteAppState();
+    } catch (error) {
+      disableRemoteSyncWithMessage(`Supabase 동기화가 아직 준비되지 않았습니다: ${error.message || error}`);
+    }
+  }, 500);
 }
 
 function bootApp() {
@@ -112,6 +213,8 @@ async function applyAuthenticatedState(session) {
 
   if (!session?.user) {
     currentHouseholdId = "";
+    remoteSyncAvailable = true;
+    syncMessageShown = false;
     setAuthUiLoggedOut();
     setAppAccess(false);
     showAuthMessage("로그인하면 가족 데이터 동기화 연결을 이어서 붙일 수 있습니다.");
@@ -132,8 +235,22 @@ async function applyAuthenticatedState(session) {
     currentHouseholdId = householdInfo.householdId;
     setAuthUiLoggedIn(session.user.email, `${householdInfo.householdName} · ${householdInfo.role}`);
     showAuthMessage("");
-    setAppAccess(true);
+    remoteSyncAvailable = true;
+    syncMessageShown = false;
+
+    try {
+      const remoteSnapshot = await fetchRemoteAppState();
+      if (remoteSnapshot) {
+        applyAppSnapshot(remoteSnapshot);
+      } else {
+        await pushRemoteAppState();
+      }
+    } catch (syncError) {
+      disableRemoteSyncWithMessage(`Supabase 동기화가 아직 준비되지 않았습니다: ${syncError.message || syncError}`);
+    }
+
     bootApp();
+    setAppAccess(true);
   } catch (error) {
     currentHouseholdId = "";
     setAuthUiLoggedIn(session.user.email, "가족 데이터 연결 확인 보류");
@@ -376,11 +493,13 @@ function shiftEducationMonth(diff) {
 }
 
 function saveEducationEntries() {
-  localStorage.setItem(educationStorageKey, JSON.stringify(educationEntries));
+  persistLocalState();
+  queueRemoteSync();
 }
 
 function saveAcademies() {
-  localStorage.setItem(academyStorageKey, JSON.stringify(academies));
+  persistLocalState();
+  queueRemoteSync();
 }
 
 function setMemoFieldValue(input, rawValue) {
@@ -861,6 +980,7 @@ function addQuickAcademyEntry() {
 function setAppTab(tabName) {
   currentAppTab = tabName;
   localStorage.setItem(appTabStorageKey, tabName);
+  queueRemoteSync();
 
   document.querySelectorAll(".app-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.tab === tabName);
@@ -1019,10 +1139,11 @@ function save() {
   building.rentRecords = building.rentRecords || {};
   building.rooms = collectRoomsFromDom();
 
-  localStorage.setItem(storageKey, JSON.stringify(buildings));
+  persistLocalState();
   calcPortfolio();
   renderTabs();
   renderDashboardTab();
+  queueRemoteSync();
 }
 
 function load() {
@@ -1857,17 +1978,15 @@ function importBackupData(file) {
       }
 
       buildings = importedBuildings;
-      current = Math.min(Number(parsed.current) || 0, buildings.length - 1);
-      academies = Array.isArray(parsed.academies) ? parsed.academies : [];
-      educationEntries = Array.isArray(parsed.educationEntries) ? parsed.educationEntries : [];
-      currentAppTab = parsed.currentAppTab || "rental";
-      localStorage.setItem(storageKey, JSON.stringify(buildings));
-      localStorage.setItem(academyStorageKey, JSON.stringify(academies));
-      localStorage.setItem(educationStorageKey, JSON.stringify(educationEntries));
-      localStorage.setItem(appTabStorageKey, currentAppTab);
-      load();
-      setAppTab(currentAppTab);
-    } catch (error) {
+        current = Math.min(Number(parsed.current) || 0, buildings.length - 1);
+        academies = Array.isArray(parsed.academies) ? parsed.academies : [];
+        educationEntries = Array.isArray(parsed.educationEntries) ? parsed.educationEntries : [];
+        currentAppTab = parsed.currentAppTab || "rental";
+        persistLocalState();
+        load();
+        setAppTab(currentAppTab);
+        queueRemoteSync();
+      } catch (error) {
       window.alert("백업 파일을 읽지 못했습니다.");
     } finally {
       importDataInput.value = "";
