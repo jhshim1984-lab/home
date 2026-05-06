@@ -1,4 +1,4 @@
-const CACHE_NAME = "home-manager-v4";
+const CACHE_NAME = "home-manager-v5";
 const APP_SHELL = [
   "./",
   "./index.html",

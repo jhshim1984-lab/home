@@ -147,17 +147,14 @@ async function fetchRemoteAppState() {
     return null;
   }
 
-  const { data, error } = await supabaseClient
-    .from("app_states")
-    .select("payload")
-    .eq("household_id", currentHouseholdId)
-    .maybeSingle();
+  const { data, error } = await supabaseClient.rpc("get_my_app_state");
 
   if (error) {
     throw error;
   }
 
-  return data?.payload || null;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row?.payload || null;
 }
 
 async function pushRemoteAppState() {
