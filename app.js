@@ -86,35 +86,21 @@ async function loadCurrentHousehold(userId) {
     return null;
   }
 
-  const { data: memberRows, error: memberError } = await supabaseClient
-    .from("household_members")
-    .select("household_id, role")
-    .eq("user_id", userId)
-    .limit(1);
+  const { data, error } = await supabaseClient.rpc("get_my_household");
 
-  if (memberError) {
-    throw memberError;
+  if (error) {
+    throw error;
   }
 
-  const member = memberRows?.[0];
-  if (!member) {
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
     return null;
   }
 
-  const { data: householdRow, error: householdError } = await supabaseClient
-    .from("households")
-    .select("id, name")
-    .eq("id", member.household_id)
-    .single();
-
-  if (householdError) {
-    throw householdError;
-  }
-
   return {
-    householdId: householdRow.id,
-    householdName: householdRow.name,
-    role: member.role
+    householdId: row.household_id,
+    householdName: row.household_name,
+    role: row.role
   };
 }
 
