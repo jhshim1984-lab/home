@@ -1,4 +1,4 @@
-const CACHE_NAME = "home-manager-v3";
+const CACHE_NAME = "home-manager-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -36,9 +36,16 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(event.request.url);
   const isSameOrigin = url.origin === self.location.origin;
+
+  // Never cache cross-origin API calls such as Supabase.
+  if (!isSameOrigin) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   const isAppShellRequest =
     event.request.mode === "navigate" ||
-    (isSameOrigin && (
+    (
       url.pathname.endsWith("/index.html") ||
       url.pathname.endsWith("/styles.css") ||
       url.pathname.endsWith("/app.js") ||
