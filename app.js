@@ -206,18 +206,21 @@ function queueRemoteSync() {
   }, 120);
 }
 
-async function refreshFromRemoteSnapshot() {
+async function refreshFromRemoteSnapshot(force = false) {
   if (!canUseRemoteSync()) {
+    showAuthMessage("현재는 Supabase 동기화를 사용할 수 없는 상태입니다.");
     return;
   }
 
-  if (localChangesPending) {
+  if (!force && localChangesPending) {
     return;
   }
 
   try {
+    showAuthMessage("원격 데이터 새로고침 중...");
     const remoteSnapshot = await fetchRemoteAppState();
     if (!snapshotHasContent(remoteSnapshot)) {
+      showAuthMessage("원격에 불러올 데이터가 없습니다.");
       return;
     }
 
@@ -226,6 +229,10 @@ async function refreshFromRemoteSnapshot() {
       load();
       setAppTab(currentAppTab);
     }
+    const syncedAtLabel = remoteSnapshot.syncedAt
+      ? new Date(remoteSnapshot.syncedAt).toLocaleString("ko-KR")
+      : "방금";
+    showAuthMessage(`원격 데이터로 새로고침했습니다. 기준 시각: ${syncedAtLabel}`);
   } catch (error) {
     disableRemoteSyncWithMessage(`Supabase 데이터 새로고침 중 오류가 발생했습니다: ${error.message || error}`);
   }
@@ -2326,7 +2333,7 @@ loginPassword.addEventListener("keydown", (event) => {
 });
 
 refreshRemoteButton.addEventListener("click", () => {
-  refreshFromRemoteSnapshot();
+  refreshFromRemoteSnapshot(true);
 });
 
 if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
