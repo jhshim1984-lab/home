@@ -320,26 +320,9 @@ async function applyAuthenticatedState(session) {
 
     currentHouseholdId = householdInfo.householdId;
     setAuthUiLoggedIn(session.user.email, `${householdInfo.householdName} · ${householdInfo.role}`);
-    showAuthMessage("");
+    showAuthMessage("현재는 안전한 수동 동기화 모드입니다. 이 기기 데이터를 공유하려면 `클라우드 올리기`, 다른 기기 데이터를 받으려면 `동기화 새로고침`을 눌러 주세요.");
     remoteSyncAvailable = true;
     syncMessageShown = false;
-
-    try {
-      const remoteSnapshot = await fetchRemoteAppState();
-      const remoteHasContent = snapshotHasContent(remoteSnapshot);
-      const localSnapshot = createAppSnapshot();
-      const localHasContent = snapshotHasContent(localSnapshot);
-
-      // Once a household has a remote snapshot, treat it as the source of truth
-      // so every device loads the same shared data on refresh/login.
-      if (remoteHasContent) {
-        applyAppSnapshot(remoteSnapshot);
-      } else if (localHasContent) {
-        await pushRemoteAppState();
-      }
-    } catch (syncError) {
-      disableRemoteSyncWithMessage(`Supabase 동기화가 아직 준비되지 않았습니다: ${syncError.message || syncError}`);
-    }
 
     bootApp();
     setAppAccess(true);
@@ -586,14 +569,10 @@ function shiftEducationMonth(diff) {
 
 function saveEducationEntries() {
   persistLocalState();
-  syncRemoteNow();
-  queueRemoteSync();
 }
 
 function saveAcademies() {
   persistLocalState();
-  syncRemoteNow();
-  queueRemoteSync();
 }
 
 function setMemoFieldValue(input, rawValue) {
@@ -1074,7 +1053,6 @@ function addQuickAcademyEntry() {
 function setAppTab(tabName) {
   currentAppTab = tabName;
   localStorage.setItem(appTabStorageKey, tabName);
-  queueRemoteSync();
 
   document.querySelectorAll(".app-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.tab === tabName);
@@ -1237,8 +1215,6 @@ function save() {
   calcPortfolio();
   renderTabs();
   renderDashboardTab();
-  syncRemoteNow();
-  queueRemoteSync();
 }
 
 function load() {
@@ -2080,11 +2056,9 @@ function importBackupData(file) {
         persistLocalState();
         load();
         setAppTab(currentAppTab);
-        syncRemoteNow();
-        queueRemoteSync();
       } catch (error) {
-      window.alert("백업 파일을 읽지 못했습니다.");
-    } finally {
+        window.alert("백업 파일을 읽지 못했습니다.");
+      } finally {
       importDataInput.value = "";
     }
   };
@@ -2334,6 +2308,14 @@ loginPassword.addEventListener("keydown", (event) => {
 
 refreshRemoteButton.addEventListener("click", () => {
   refreshFromRemoteSnapshot(true);
+});
+
+pushRemoteButton.addEventListener("click", async () => {
+  showAuthMessage("현재 기기 데이터를 클라우드에 올리는 중...");
+  const success = await syncRemoteNow();
+  if (success) {
+    showAuthMessage("현재 기기 데이터를 클라우드에 올렸습니다.");
+  }
 });
 
 if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
