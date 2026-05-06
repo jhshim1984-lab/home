@@ -82,6 +82,14 @@ function createAppSnapshot() {
 }
 
 function applyAppSnapshot(snapshot) {
+  if (typeof snapshot === "string") {
+    try {
+      snapshot = JSON.parse(snapshot);
+    } catch (_error) {
+      return;
+    }
+  }
+
   if (!snapshot || typeof snapshot !== "object") {
     return;
   }
@@ -219,20 +227,33 @@ async function refreshFromRemoteSnapshot(force = false) {
   try {
     showAuthMessage("원격 데이터 새로고침 중...");
     const remoteSnapshot = await fetchRemoteAppState();
-    if (!snapshotHasContent(remoteSnapshot)) {
+    const parsedSnapshot = typeof remoteSnapshot === "string"
+      ? (() => {
+          try {
+            return JSON.parse(remoteSnapshot);
+          } catch (_error) {
+            return null;
+          }
+        })()
+      : remoteSnapshot;
+
+    if (!snapshotHasContent(parsedSnapshot)) {
       showAuthMessage("원격에 불러올 데이터가 없습니다.");
       return;
     }
 
-    applyAppSnapshot(remoteSnapshot);
+    applyAppSnapshot(parsedSnapshot);
     if (appBooted) {
       load();
       setAppTab(currentAppTab);
     }
-    const syncedAtLabel = remoteSnapshot.syncedAt
-      ? new Date(remoteSnapshot.syncedAt).toLocaleString("ko-KR")
+    const syncedAtLabel = parsedSnapshot?.syncedAt
+      ? new Date(parsedSnapshot.syncedAt).toLocaleString("ko-KR")
       : "방금";
-    showAuthMessage(`원격 데이터로 새로고침했습니다. 기준 시각: ${syncedAtLabel}`);
+    const buildingCount = Array.isArray(parsedSnapshot?.buildings) ? parsedSnapshot.buildings.length : 0;
+    const academyCount = Array.isArray(parsedSnapshot?.academies) ? parsedSnapshot.academies.length : 0;
+    const entryCount = Array.isArray(parsedSnapshot?.educationEntries) ? parsedSnapshot.educationEntries.length : 0;
+    showAuthMessage(`원격 데이터로 새로고침했습니다. 기준 시각: ${syncedAtLabel} / 건물 ${buildingCount}개 / 학원 ${academyCount}개 / 교육비 ${entryCount}건`);
   } catch (error) {
     disableRemoteSyncWithMessage(`Supabase 데이터 새로고침 중 오류가 발생했습니다: ${error.message || error}`);
   }
