@@ -465,6 +465,7 @@ input[type="checkbox"] {
   gap: 10px;
   margin-bottom: 10px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .room-title {
@@ -486,13 +487,18 @@ input[type="checkbox"] {
 .room-status-badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: #fff0dc;
   color: var(--accent-strong);
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.room-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-wrap: wrap;
 }
 
 .room .mini-row {
@@ -633,7 +639,6 @@ input[type="checkbox"] {
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  margin-left: auto;
 }
 
 .room-top,
@@ -656,8 +661,8 @@ input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 52px;
-  padding: 6px 8px;
+  min-width: 42px;
+  padding: 5px 8px;
   border: 1px solid #ebd5bf;
   border-radius: 999px;
   background: #fff7ef;
@@ -1539,16 +1544,17 @@ hr {
 
   .room-head {
     align-items: flex-start;
-    flex-direction: column;
   }
 
   .room-title-wrap {
-    width: 100%;
     gap: 6px;
+    flex: 0 1 auto;
   }
 
-  .room-toggle {
+  .room-actions {
     margin-left: auto;
+    justify-content: flex-end;
+    width: auto;
   }
 
   .room-type {
@@ -1583,13 +1589,13 @@ hr {
   }
 
   .phone-actions {
-    width: 100%;
+    width: auto;
   }
 
   .phone-action {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 7px 6px;
+    flex: 0 0 auto;
+    min-width: 40px;
+    padding: 6px 7px;
     font-size: 10px;
   }
 

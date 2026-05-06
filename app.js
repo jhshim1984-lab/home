@@ -875,9 +875,15 @@ function generate() {
         <div class="room-head">
           <div class="room-title-wrap">
             <div class="room-title">${floorRoomNumbers[roomNumber]}호</div>
-            <div class="room-status-badge">${roomStatusLabel}</div>
+            <div class="room-status-badge">(${roomStatusLabel})</div>
           </div>
-          <button type="button" class="room-toggle">${isCompact ? "상세" : "닫기"}</button>
+          <div class="room-actions">
+            <div class="phone-actions">
+              <a class="phone-action phone-call is-disabled" href="#" tabindex="-1">전화</a>
+              <a class="phone-action phone-sms is-disabled" href="#" tabindex="-1">문자</a>
+            </div>
+            <button type="button" class="room-toggle">${isCompact ? "상세보기" : "닫기"}</button>
+          </div>
         </div>
         <div class="room-top">
           <div class="mini-row">
@@ -887,10 +893,6 @@ function generate() {
           <div class="mini-row">
             <label>전화</label>
             <input class="tenant-phone" value="${roomState.tenantPhone || ""}">
-            <div class="phone-actions">
-              <a class="phone-action phone-call is-disabled" href="#" tabindex="-1">전화걸기</a>
-              <a class="phone-action phone-sms is-disabled" href="#" tabindex="-1">문자하기</a>
-            </div>
           </div>
         </div>
         <div class="room-grid">
@@ -971,6 +973,7 @@ function bind() {
         return;
       }
       roomStatusBadge.innerText = vacant.checked ? "공실" : jeonse.checked ? "전세" : "월세";
+      roomStatusBadge.innerText = `(${roomStatusBadge.innerText})`;
     };
 
     const updatePhoneActions = () => {
@@ -997,7 +1000,7 @@ function bind() {
     if (roomToggle) {
       roomToggle.onclick = () => {
         const compact = room.classList.toggle("is-compact");
-        roomToggle.innerText = compact ? "상세" : "닫기";
+        roomToggle.innerText = compact ? "상세보기" : "닫기";
         save();
       };
     }
