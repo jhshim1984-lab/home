@@ -33,6 +33,7 @@ let remoteSyncTimer = null;
 let remoteSyncAvailable = true;
 let syncMessageShown = false;
 let localSnapshotSyncedAt = localStorage.getItem(syncMetaKey) || "";
+let remoteRefreshTimer = null;
 
 function newBuilding() {
   return {
@@ -224,6 +225,29 @@ async function refreshFromRemoteSnapshot() {
   }
 }
 
+function startRemoteRefreshLoop() {
+  if (remoteRefreshTimer) {
+    clearInterval(remoteRefreshTimer);
+  }
+
+  if (!canUseRemoteSync()) {
+    return;
+  }
+
+  remoteRefreshTimer = window.setInterval(() => {
+    if (document.visibilityState === "visible") {
+      refreshFromRemoteSnapshot();
+    }
+  }, 5000);
+}
+
+function stopRemoteRefreshLoop() {
+  if (remoteRefreshTimer) {
+    clearInterval(remoteRefreshTimer);
+    remoteRefreshTimer = null;
+  }
+}
+
 function bootApp() {
   if (appBooted) {
     return;
@@ -287,6 +311,7 @@ async function applyAuthenticatedState(session) {
     currentHouseholdId = "";
     remoteSyncAvailable = true;
     syncMessageShown = false;
+    stopRemoteRefreshLoop();
     setAuthUiLoggedOut();
     setAppAccess(false);
     showAuthMessage("로그인하면 가족 데이터 동기화 연결을 이어서 붙일 수 있습니다.");
@@ -329,8 +354,10 @@ async function applyAuthenticatedState(session) {
 
     bootApp();
     setAppAccess(true);
+    startRemoteRefreshLoop();
   } catch (error) {
     currentHouseholdId = "";
+    stopRemoteRefreshLoop();
     setAuthUiLoggedIn(session.user.email, "가족 데이터 연결 확인 보류");
     setAppAccess(true);
     bootApp();
@@ -2319,11 +2346,6 @@ loginPassword.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    syncRemoteNow();
-    return;
-  }
-
   if (document.visibilityState === "visible") {
     refreshFromRemoteSnapshot();
   }
