@@ -356,6 +356,12 @@ label {
   flex: none;
 }
 
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
 input {
   padding: 8px 10px;
   border: 1px solid var(--line);
@@ -474,6 +480,20 @@ input[type="checkbox"] {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.room-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #fff0dc;
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .room .mini-row {
@@ -502,7 +522,7 @@ input[type="checkbox"] {
 
 .room-top {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(150px, 1.1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px 10px;
   margin-bottom: 10px;
   min-width: 0;
@@ -515,16 +535,6 @@ input[type="checkbox"] {
 .room-top .mini-row label {
   width: 32px;
   flex: 0 0 32px;
-}
-
-.room-top .mini-row:first-child input {
-  max-width: 140px;
-  text-align: center;
-}
-
-.room-top .mini-row:last-child input {
-  max-width: 170px;
-  text-align: center;
 }
 
 .room-top .mini-row,
@@ -549,6 +559,10 @@ input[type="checkbox"] {
   flex: 1;
   width: 100%;
   min-width: 0;
+}
+
+.room-grid-detail {
+  margin-bottom: 10px;
 }
 
 .room-type {
@@ -576,6 +590,12 @@ input[type="checkbox"] {
 
 .room-type-chip input {
   margin: 0;
+}
+
+.room-type-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .room-note {
@@ -1262,11 +1282,14 @@ input[type="checkbox"] {
 }
 
 .rent-records-table-wrap {
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
 }
 
 .rent-records-table {
-  width: 100%;
+  width: max-content;
+  min-width: 1120px;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 11px;
@@ -1361,7 +1384,11 @@ input[type="checkbox"] {
 }
 
 .rent-room-col {
-  width: 92px;
+  width: 72px;
+}
+
+.rent-month-col {
+  width: 86px;
 }
 
 .rent-room-meta {
@@ -1483,11 +1510,6 @@ hr {
     grid-template-columns: 1fr;
   }
 
-  .room-top,
-  .room-grid {
-    grid-template-columns: 1fr;
-  }
-
   .room-head {
     align-items: flex-start;
     flex-direction: column;
@@ -1495,16 +1517,80 @@ hr {
 
   .room-title-wrap {
     width: 100%;
-    justify-content: space-between;
+    gap: 6px;
   }
 
   .room-type {
     justify-content: flex-start;
   }
 
+  .room-top,
+  .room-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px 8px;
+  }
+
+  .room-grid-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .room-top .mini-row label,
+  .room-grid .mini-row label {
+    width: 30px;
+    flex: 0 0 30px;
+    font-size: 12px;
+  }
+
+  .room-grid .mini-row label {
+    width: 38px;
+    flex-basis: 38px;
+  }
+
+  .room .mini-row input {
+    padding: 8px 6px;
+    font-size: 14px;
+  }
+
+  .room-status-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
   .rent-records-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .rent-records-table {
+    min-width: 1180px;
+    font-size: 10px;
+  }
+
+  .rent-room-col {
+    width: 64px;
+  }
+
+  .rent-month-col {
+    width: 90px;
+  }
+
+  .rent-record-input,
+  .rent-interest-input {
+    font-size: 12px;
+    padding: 3px 2px;
+  }
+
+  .rent-record-date {
+    font-size: 10px;
+    padding: 3px 2px 1px;
+  }
+
+  .rent-room-meta strong {
+    font-size: 10px;
+  }
+
+  .rent-room-meta span {
+    font-size: 9px;
   }
 }
 

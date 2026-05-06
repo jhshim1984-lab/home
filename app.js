@@ -866,16 +866,13 @@ function generate() {
 
       const card = document.createElement("div");
       card.className = `room${isCompact ? " is-compact" : ""}`;
+      const roomStatusLabel = isVacant ? "공실" : isJeonse ? "전세" : "월세";
       card.innerHTML = `
         <div class="room-head">
           <div class="room-title-wrap">
             <div class="room-title">${floorRoomNumbers[roomNumber]}호</div>
+            <div class="room-status-badge">${roomStatusLabel}</div>
             <button type="button" class="room-toggle">${isCompact ? "상세" : "닫기"}</button>
-          </div>
-          <div class="room-type">
-            <label class="room-type-chip"><input type="checkbox" class="j" ${isJeonse ? "checked" : ""}> 전세</label>
-            <label class="room-type-chip"><input type="checkbox" class="w" ${isMonthly ? "checked" : ""}> 월세</label>
-            <label class="room-type-chip"><input type="checkbox" class="v" ${isVacant ? "checked" : ""}> 공실</label>
           </div>
         </div>
         <div class="room-top">
@@ -899,7 +896,12 @@ function generate() {
           </div>
         </div>
         <div class="room-details">
-          <div class="room-grid">
+          <div class="room-type-controls">
+            <label class="room-type-chip"><input type="checkbox" class="j" ${isJeonse ? "checked" : ""}> 전세</label>
+            <label class="room-type-chip"><input type="checkbox" class="w" ${isMonthly ? "checked" : ""}> 월세</label>
+            <label class="room-type-chip"><input type="checkbox" class="v" ${isVacant ? "checked" : ""}> 공실</label>
+          </div>
+          <div class="room-grid room-grid-detail">
           <div class="mini-row">
             <label>입주일</label>
             <input type="date" class="move-in" value="${roomState.moveIn || ""}">
@@ -951,6 +953,14 @@ function bind() {
     const monthlyRent = room.querySelector(".m");
     const roomToggle = room.querySelector(".room-toggle");
     const roomTitle = room.querySelector(".room-title")?.innerText || "호실";
+    const roomStatusBadge = room.querySelector(".room-status-badge");
+
+    const updateRoomStatusBadge = () => {
+      if (!roomStatusBadge) {
+        return;
+      }
+      roomStatusBadge.innerText = vacant.checked ? "공실" : jeonse.checked ? "전세" : "월세";
+    };
 
     if (roomToggle) {
       roomToggle.onclick = () => {
@@ -971,6 +981,7 @@ function bind() {
       monthly.checked = previousState.w;
       vacant.checked = previousState.v;
       monthlyRent.disabled = previousState.j || previousState.v;
+      updateRoomStatusBadge();
     };
 
     const syncPreviousState = () => {
@@ -1002,6 +1013,7 @@ function bind() {
         }
       }
       syncPreviousState();
+      updateRoomStatusBadge();
       calc();
       save();
     };
@@ -1024,6 +1036,7 @@ function bind() {
         }
       }
       syncPreviousState();
+      updateRoomStatusBadge();
       calc();
       save();
     };
@@ -1044,9 +1057,12 @@ function bind() {
         monthlyRent.disabled = false;
       }
       syncPreviousState();
+      updateRoomStatusBadge();
       calc();
       save();
     };
+
+    updateRoomStatusBadge();
   });
 }
 
@@ -1281,7 +1297,7 @@ function renderRentRecords() {
         <thead>
           <tr>
             <th class="rent-room-col">호실</th>
-            ${monthHeaders.map((month) => `<th>${month}</th>`).join("")}
+            ${monthHeaders.map((month) => `<th class="rent-month-col">${month}</th>`).join("")}
           </tr>
         </thead>
         <tbody>
