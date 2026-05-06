@@ -352,6 +352,29 @@ label {
   margin-left: 8px;
 }
 
+.compact-field-row {
+  flex-wrap: nowrap;
+}
+
+.compact-field-row label {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.compact-field-row input {
+  width: 120px;
+  min-width: 0;
+}
+
+.compact-field-row input[type="date"] {
+  width: 150px;
+}
+
+.compact-field-row > span {
+  min-height: auto;
+  white-space: nowrap;
+}
+
 .field-row span.inline-korean {
   width: auto;
   min-height: auto;
@@ -1554,6 +1577,15 @@ hr {
   .floor-row label {
     width: auto;
     flex-basis: auto;
+  }
+
+  .compact-field-row {
+    flex-wrap: wrap;
+  }
+
+  .compact-field-row input,
+  .compact-field-row input[type="date"] {
+    width: 100%;
   }
 
   input,

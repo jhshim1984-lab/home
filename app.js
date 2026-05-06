@@ -671,7 +671,6 @@ function setAppTab(tabName) {
 function updateHoldingInfo() {
   if (!buyDate.value) {
     holdYears.innerText = "-";
-    deductionRate.innerText = "-";
     return;
   }
 
@@ -681,13 +680,11 @@ function updateHoldingInfo() {
 
   if (Number.isNaN(diffMs) || diffMs < 0) {
     holdYears.innerText = "-";
-    deductionRate.innerText = "-";
     return;
   }
 
   const years = diffMs / (1000 * 60 * 60 * 24 * 365.25);
   holdYears.innerText = `${years.toFixed(1)}년`;
-  deductionRate.innerText = getDeductionRate(years);
 }
 
 function renderTabs() {
