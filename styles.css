@@ -354,6 +354,19 @@ h3 {
   margin-bottom: 18px;
 }
 
+.tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.tabs-row .tabs {
+  margin-bottom: 0;
+  flex: 1;
+}
+
 .tabs button,
 .actions button {
   border: 1px solid var(--accent-strong);
@@ -368,6 +381,16 @@ h3 {
 .tabs button.active {
   background: linear-gradient(180deg, #ff9a38 0%, var(--accent-strong) 100%);
   color: #fff;
+}
+
+.danger-button {
+  border: 1px solid #d47952;
+  background: #fff4ee;
+  color: #bf5b34;
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .actions {
@@ -434,6 +457,22 @@ label {
 .compact-field-row > span {
   min-height: auto;
   white-space: nowrap;
+}
+
+.apartment-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.apartment-inline label {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.apartment-inline input {
+  width: 92px;
 }
 
 .field-row span.inline-korean {
@@ -594,6 +633,18 @@ input[type="checkbox"] {
   font-size: 15px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.room-status-badge.state-jeonse {
+  color: #4b80d9;
+}
+
+.room-status-badge.state-monthly {
+  color: #d95b57;
+}
+
+.room-status-badge.state-vacant {
+  color: #7b736a;
 }
 
 .room-actions {
@@ -1580,6 +1631,15 @@ hr {
   .auth-status-bar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .tabs-row {
+    flex-direction: column;
+  }
+
+  .tabs-row .tabs,
+  .danger-button {
+    width: 100%;
   }
 
   .app-tabs {

@@ -61,7 +61,10 @@
     <div class="net-box">전체 월 순수익: <span id="totalNet"></span></div>
   </div>
 
-  <div class="tabs" id="tabs"></div>
+  <div class="tabs-row">
+    <div class="tabs" id="tabs"></div>
+    <button type="button" id="deleteBuildingButton" class="danger-button">현재 건물 삭제</button>
+  </div>
 
   <div class="panel">
     <div class="section-heading">
@@ -99,6 +102,20 @@
       </div>
 
       <div>
+        <div class="field-row compact-field-row">
+          <label for="buildingType">유형</label>
+          <select id="buildingType">
+            <option value="multi">다가구/다중주택</option>
+            <option value="apartment">아파트</option>
+            <option value="commercial">상가</option>
+          </select>
+          <span id="apartmentFields" class="apartment-inline hidden">
+            <label for="apartmentDong">동</label>
+            <input id="apartmentDong" placeholder="101">
+            <label for="apartmentHo">호</label>
+            <input id="apartmentHo" placeholder="1001">
+          </span>
+        </div>
         <div class="field-row compact-field-row">
           <label for="buyDate">매수일</label>
           <input type="date" id="buyDate">

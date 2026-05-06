@@ -33,6 +33,9 @@ function newBuilding() {
   return {
     name: "",
     address: "",
+    buildingType: "multi",
+    apartmentDong: "",
+    apartmentHo: "",
     price: "",
     loan: "",
     rate: "4",
@@ -216,6 +219,36 @@ async function initializeSupabaseAuth() {
 
 function formatCurrency(value) {
   return `${Math.round(value || 0).toLocaleString()}원`;
+}
+
+function getRoomStatusLabel(isJeonse, isVacant) {
+  return isVacant ? "공실" : isJeonse ? "전세" : "월세";
+}
+
+function getRoomStatusClass(isJeonse, isVacant) {
+  return isVacant ? "state-vacant" : isJeonse ? "state-jeonse" : "state-monthly";
+}
+
+function getApartmentRoomLabel() {
+  const dong = apartmentDong.value.trim();
+  const ho = apartmentHo.value.trim();
+  if (dong && ho) {
+    return `${dong}동 ${ho}호`;
+  }
+  if (dong) {
+    return `${dong}동`;
+  }
+  if (ho) {
+    return `${ho}호`;
+  }
+  return "아파트";
+}
+
+function updateBuildingTypeUi() {
+  const isApartment = buildingType.value === "apartment";
+  apartmentFields.classList.toggle("hidden", !isApartment);
+  floorSectionTitle.classList.toggle("hidden", isApartment);
+  floorSettings.classList.toggle("hidden", isApartment);
 }
 
 function formatKoreanCurrencyText(value) {
@@ -892,9 +925,14 @@ function renderTabs() {
     load();
   };
   tabs.appendChild(add);
+  deleteBuildingButton.innerText = buildings.length > 1 ? "현재 건물 삭제" : "현재 건물 비우기";
 }
 
 function getRoomLabels() {
+  if (buildingType.value === "apartment") {
+    return [getApartmentRoomLabel()];
+  }
+
   const labels = [];
 
   [f1, f2, f3, f4, f5].forEach((floorField, floorIndex) => {
@@ -963,6 +1001,9 @@ function save() {
 
   building.name = buildingNameInput.value;
   building.address = address.value;
+  building.buildingType = buildingType.value;
+  building.apartmentDong = apartmentDong.value;
+  building.apartmentHo = apartmentHo.value;
   building.price = price.value;
   building.loan = loan.value;
   building.rate = rate.value;
@@ -989,6 +1030,9 @@ function load() {
 
   buildingNameInput.value = building.name;
   address.value = building.address;
+  buildingType.value = building.buildingType || "multi";
+  apartmentDong.value = building.apartmentDong || "";
+  apartmentHo.value = building.apartmentHo || "";
   price.value = formatInputNumber(building.price);
   loan.value = formatInputNumber(building.loan);
   rate.value = building.rate;
@@ -1003,6 +1047,7 @@ function load() {
 
   setPropertyDetailsCollapsed(Boolean(building.propertyDetailsCollapsed));
   setFloorSettingsCollapsed(Boolean(building.floorSettingsCollapsed));
+  updateBuildingTypeUi();
 
   generate();
 
@@ -1034,6 +1079,74 @@ function load() {
   renderDashboardTab();
 }
 
+function createRoomCard(roomLabel, roomState) {
+  const isJeonse = Boolean(roomState.j);
+  const isVacant = Boolean(roomState.v);
+  const isMonthly = roomState.w !== undefined ? Boolean(roomState.w) : (!isJeonse && !isVacant);
+  const isCompact = roomState.expanded !== true;
+  const roomStatusLabel = getRoomStatusLabel(isJeonse, isVacant);
+  const roomStatusClass = getRoomStatusClass(isJeonse, isVacant);
+  const card = document.createElement("div");
+  card.className = `room${isCompact ? " is-compact" : ""}`;
+  card.innerHTML = `
+    <div class="room-head">
+      <div class="room-title-wrap">
+        <div class="room-title">${roomLabel}</div>
+        <div class="room-status-badge ${roomStatusClass}">(${roomStatusLabel})</div>
+      </div>
+      <div class="room-actions">
+        <div class="phone-actions">
+          <a class="phone-action phone-call is-disabled" href="#" tabindex="-1">전화</a>
+          <a class="phone-action phone-sms is-disabled" href="#" tabindex="-1">문자</a>
+        </div>
+        <button type="button" class="room-toggle">${isCompact ? "상세보기" : "닫기"}</button>
+      </div>
+    </div>
+    <div class="room-top">
+      <div class="mini-row">
+        <label>이름</label>
+        <input class="tenant-name" value="${roomState.tenantName || ""}">
+      </div>
+      <div class="mini-row">
+        <label>전화</label>
+        <input class="tenant-phone" value="${roomState.tenantPhone || ""}">
+      </div>
+    </div>
+    <div class="room-grid">
+      <div class="mini-row">
+        <label>보증금</label>
+        <input class="d" value="${formatInputNumber(roomState.d)}">
+      </div>
+      <div class="mini-row">
+        <label>월세</label>
+        <input class="m" value="${formatInputNumber(roomState.m)}" ${(isJeonse || isVacant) ? "disabled" : ""}>
+      </div>
+    </div>
+    <div class="room-details">
+      <div class="room-type-controls">
+        <label class="room-type-chip"><input type="checkbox" class="j" ${isJeonse ? "checked" : ""}> 전세</label>
+        <label class="room-type-chip"><input type="checkbox" class="w" ${isMonthly ? "checked" : ""}> 월세</label>
+        <label class="room-type-chip"><input type="checkbox" class="v" ${isVacant ? "checked" : ""}> 공실</label>
+      </div>
+      <div class="room-grid room-grid-detail">
+      <div class="mini-row">
+        <label>입주일</label>
+        <input type="date" class="move-in" value="${roomState.moveIn || ""}">
+      </div>
+      <div class="mini-row">
+        <label>퇴실일</label>
+        <input type="date" class="move-out" value="${roomState.moveOut || ""}">
+      </div>
+      </div>
+      <div class="room-note">
+        <label>특이사항</label>
+        <textarea class="note" rows="3">${roomState.note || ""}</textarea>
+      </div>
+    </div>
+  `;
+  return card;
+}
+
 function generate() {
   const existingRooms = collectRoomsFromDom();
   const currentFloorCollapsed = [0, 1, 2, 3, 4].map((index) => {
@@ -1045,6 +1158,27 @@ function generate() {
   });
 
   rooms.innerHTML = "";
+
+  if (buildingType.value === "apartment") {
+    const box = document.createElement("div");
+    box.className = "floor-box";
+    box.innerHTML = `
+      <div class="floor-box-head">
+        <div class="floor-header">아파트 임대 정보</div>
+      </div>
+    `;
+    const wrap = document.createElement("div");
+    wrap.className = "rooms";
+    const roomState = buildings[current].rooms[0] || existingRooms[0] || {};
+    wrap.appendChild(createRoomCard(getApartmentRoomLabel(), roomState));
+    box.appendChild(wrap);
+    rooms.appendChild(box);
+    bind();
+    bindFloorToggles();
+    calc();
+    renderRentRecords();
+    return;
+  }
 
   [f1, f2, f3, f4, f5].forEach((floorField, floorIndex) => {
     const count = parseNumber(floorField.value);
@@ -1074,72 +1208,7 @@ function generate() {
         return sum + (list ? list.childElementCount : 0);
       }, 0);
       const roomState = buildings[current].rooms[roomIndex] || existingRooms[roomIndex] || {};
-      const isJeonse = Boolean(roomState.j);
-      const isVacant = Boolean(roomState.v);
-      const isMonthly = roomState.w !== undefined ? Boolean(roomState.w) : (!isJeonse && !isVacant);
-      const isCompact = roomState.expanded !== true;
-
-      const card = document.createElement("div");
-      card.className = `room${isCompact ? " is-compact" : ""}`;
-      const roomStatusLabel = isVacant ? "공실" : isJeonse ? "전세" : "월세";
-      card.innerHTML = `
-        <div class="room-head">
-          <div class="room-title-wrap">
-            <div class="room-title">${floorRoomNumbers[roomNumber]}호</div>
-            <div class="room-status-badge">(${roomStatusLabel})</div>
-          </div>
-          <div class="room-actions">
-            <div class="phone-actions">
-              <a class="phone-action phone-call is-disabled" href="#" tabindex="-1">전화</a>
-              <a class="phone-action phone-sms is-disabled" href="#" tabindex="-1">문자</a>
-            </div>
-            <button type="button" class="room-toggle">${isCompact ? "상세보기" : "닫기"}</button>
-          </div>
-        </div>
-        <div class="room-top">
-          <div class="mini-row">
-            <label>이름</label>
-            <input class="tenant-name" value="${roomState.tenantName || ""}">
-          </div>
-          <div class="mini-row">
-            <label>전화</label>
-            <input class="tenant-phone" value="${roomState.tenantPhone || ""}">
-          </div>
-        </div>
-        <div class="room-grid">
-          <div class="mini-row">
-            <label>보증금</label>
-            <input class="d" value="${formatInputNumber(roomState.d)}">
-          </div>
-          <div class="mini-row">
-            <label>월세</label>
-            <input class="m" value="${formatInputNumber(roomState.m)}" ${(isJeonse || isVacant) ? "disabled" : ""}>
-          </div>
-        </div>
-        <div class="room-details">
-          <div class="room-type-controls">
-            <label class="room-type-chip"><input type="checkbox" class="j" ${isJeonse ? "checked" : ""}> 전세</label>
-            <label class="room-type-chip"><input type="checkbox" class="w" ${isMonthly ? "checked" : ""}> 월세</label>
-            <label class="room-type-chip"><input type="checkbox" class="v" ${isVacant ? "checked" : ""}> 공실</label>
-          </div>
-          <div class="room-grid room-grid-detail">
-          <div class="mini-row">
-            <label>입주일</label>
-            <input type="date" class="move-in" value="${roomState.moveIn || ""}">
-          </div>
-          <div class="mini-row">
-            <label>퇴실일</label>
-            <input type="date" class="move-out" value="${roomState.moveOut || ""}">
-          </div>
-          </div>
-          <div class="room-note">
-            <label>특이사항</label>
-            <textarea class="note" rows="3">${roomState.note || ""}</textarea>
-          </div>
-        </div>
-      `;
-
-      wrap.appendChild(card);
+      wrap.appendChild(createRoomCard(`${floorRoomNumbers[roomNumber]}호`, roomState));
     }
 
     box.appendChild(wrap);
@@ -1179,13 +1248,15 @@ function bind() {
     const phoneCall = room.querySelector(".phone-call");
     const phoneSms = room.querySelector(".phone-sms");
 
-    const updateRoomStatusBadge = () => {
-      if (!roomStatusBadge) {
-        return;
-      }
-      roomStatusBadge.innerText = vacant.checked ? "공실" : jeonse.checked ? "전세" : "월세";
-      roomStatusBadge.innerText = `(${roomStatusBadge.innerText})`;
-    };
+      const updateRoomStatusBadge = () => {
+        if (!roomStatusBadge) {
+          return;
+        }
+        const nextLabel = getRoomStatusLabel(jeonse.checked, vacant.checked);
+        roomStatusBadge.innerText = `(${nextLabel})`;
+        roomStatusBadge.classList.remove("state-jeonse", "state-monthly", "state-vacant");
+        roomStatusBadge.classList.add(getRoomStatusClass(jeonse.checked, vacant.checked));
+      };
 
     const updatePhoneActions = () => {
       const phone = sanitizePhoneNumber(tenantPhone?.value);
@@ -1844,6 +1915,17 @@ document.addEventListener("input", (event) => {
     rentRecordsTitle.innerText = getRentRecordsHeading();
   }
 
+  if (event.target === buildingType) {
+    updateBuildingTypeUi();
+    generate();
+  }
+
+  if (event.target === apartmentDong || event.target === apartmentHo) {
+    if (buildingType.value === "apartment") {
+      generate();
+    }
+  }
+
   calc();
   save();
   renderDashboardTab();
@@ -1870,6 +1952,26 @@ toggleFloorsButton.addEventListener("click", () => {
   const nextCollapsed = !floorSettings.classList.contains("collapsed");
   setFloorSettingsCollapsed(nextCollapsed);
   save();
+});
+
+deleteBuildingButton.addEventListener("click", () => {
+  if (buildings.length === 1) {
+    if (!window.confirm("현재 건물을 비우고 새로 시작할까요?")) {
+      return;
+    }
+    buildings = [newBuilding()];
+    current = 0;
+  } else {
+    const currentName = buildings[current]?.name || `건물${current + 1}`;
+    if (!window.confirm(`${currentName} 건물을 삭제할까요?`)) {
+      return;
+    }
+    buildings.splice(current, 1);
+    current = Math.max(0, current - 1);
+  }
+
+  localStorage.setItem(storageKey, JSON.stringify(buildings));
+  load();
 });
 
 printRentRecordsButton.addEventListener("click", () => {
