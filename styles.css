@@ -34,6 +34,67 @@ body {
   margin: 0 auto;
 }
 
+.auth-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid var(--accent-soft);
+  border-radius: 18px;
+  background: rgba(255, 250, 245, 0.92);
+  box-shadow: 0 12px 30px rgba(78, 51, 30, 0.08);
+}
+
+.auth-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-copy span,
+.auth-status-copy span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.auth-form,
+.auth-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.auth-form input {
+  flex: 1 1 220px;
+}
+
+.auth-form button,
+.auth-status-bar button {
+  border: 1px solid var(--accent-strong);
+  background: linear-gradient(180deg, #ffb257 0%, var(--accent) 100%);
+  color: #fffaf5;
+  border-radius: 999px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(242, 140, 40, 0.22);
+}
+
+.auth-status-copy {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+}
+
+.auth-message {
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #fff3e6;
+  color: #b75a12;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .mobile-webapp-tip {
   margin-bottom: 14px;
   padding: 12px 14px;
@@ -1513,6 +1574,12 @@ hr {
   .mobile-webapp-tip {
     font-size: 12px;
     padding: 10px 12px;
+  }
+
+  .auth-form,
+  .auth-status-bar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .app-tabs {

@@ -17,10 +17,30 @@
 <body>
 <div class="container">
   <h2>홈 매니저</h2>
+  <div id="authPanel" class="auth-panel">
+    <div class="auth-copy">
+      <strong>가족 로그인</strong>
+      <span id="authHelpText">Supabase 계정으로 로그인하면 부부가 같은 데이터를 함께 사용할 수 있습니다.</span>
+    </div>
+    <div id="authForm" class="auth-form">
+      <input id="loginEmail" type="email" placeholder="이메일">
+      <input id="loginPassword" type="password" placeholder="비밀번호">
+      <button type="button" id="loginButton">로그인</button>
+    </div>
+    <div id="authStatusBar" class="auth-status-bar hidden">
+      <div class="auth-status-copy">
+        <strong id="authUserEmail">-</strong>
+        <span id="householdNameLabel">가족 데이터 연결 확인 중</span>
+      </div>
+      <button type="button" id="logoutButton">로그아웃</button>
+    </div>
+    <div id="authMessage" class="auth-message hidden"></div>
+  </div>
   <div class="mobile-webapp-tip">
     아이폰에서는 사파리의 공유 버튼을 눌러 <b>홈 화면에 추가</b>하면 앱처럼 사용할 수 있습니다.
   </div>
 
+  <div id="appShell" class="hidden">
   <div class="app-tabs">
     <button type="button" class="app-tab active" data-tab="dashboard">대시보드</button>
     <button type="button" class="app-tab" data-tab="rental">임대관리</button>
@@ -437,10 +457,13 @@
     </div>
     <p class="muted">월간리포트 화면은 임대관리와 교육비 데이터를 연결한 뒤 추가할 예정입니다.</p>
   </section>
+  </div>
 </div>
 
 <input type="file" id="importDataInput" accept=".json" hidden>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-config.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>

@@ -3,6 +3,16 @@ const educationStorageKey = "educationExpenses";
 const academyStorageKey = "educationAcademies";
 const appTabStorageKey = "appTab";
 const buildingNameInput = document.getElementById("buildingName");
+const supabaseConfig = window.SUPABASE_CONFIG || {};
+const isSupabaseConfigured = Boolean(
+  supabaseConfig.url &&
+  supabaseConfig.anonKey &&
+  !supabaseConfig.url.includes("YOUR_PROJECT_ID") &&
+  !supabaseConfig.anonKey.includes("YOUR_SUPABASE_ANON_KEY")
+);
+const supabaseClient = isSupabaseConfigured && window.supabase
+  ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
+  : null;
 let current = 0;
 let buildings = JSON.parse(localStorage.getItem(storageKey) || "null") || [newBuilding()];
 let educationEntries = JSON.parse(localStorage.getItem(educationStorageKey) || "[]");
@@ -15,6 +25,9 @@ let academySectionCollapsed = false;
 let directEducationSectionCollapsed = false;
 const initialDashboardDate = new Date();
 let dashboardMonth = `${initialDashboardDate.getFullYear()}-${String(initialDashboardDate.getMonth() + 1).padStart(2, "0")}`;
+let currentSession = null;
+let currentHouseholdId = "";
+let appBooted = false;
 
 function newBuilding() {
   return {
@@ -33,6 +46,183 @@ function newBuilding() {
     rentExpenses: {},
     rooms: []
   };
+}
+
+function bootApp() {
+  if (appBooted) {
+    return;
+  }
+
+  load();
+  setAppTab(currentAppTab);
+  appBooted = true;
+}
+
+function showAuthMessage(message = "", isVisible = true) {
+  authMessage.innerText = message;
+  authMessage.classList.toggle("hidden", !isVisible || !message);
+}
+
+function setAppAccess(isAllowed) {
+  appShell.classList.toggle("hidden", !isAllowed);
+}
+
+function setAuthUiLoggedOut() {
+  authForm.classList.remove("hidden");
+  authStatusBar.classList.add("hidden");
+  authUserEmail.innerText = "-";
+  householdNameLabel.innerText = "가족 데이터에 로그인해 주세요.";
+}
+
+function setAuthUiLoggedIn(userEmail, householdLabel) {
+  authForm.classList.add("hidden");
+  authStatusBar.classList.remove("hidden");
+  authUserEmail.innerText = userEmail || "-";
+  householdNameLabel.innerText = householdLabel || "가족 데이터 연결됨";
+}
+
+async function loadCurrentHousehold(userId) {
+  if (!supabaseClient || !userId) {
+    return null;
+  }
+
+  const { data: memberRows, error: memberError } = await supabaseClient
+    .from("household_members")
+    .select("household_id, role")
+    .eq("user_id", userId)
+    .limit(1);
+
+  if (memberError) {
+    throw memberError;
+  }
+
+  const member = memberRows?.[0];
+  if (!member) {
+    return null;
+  }
+
+  const { data: householdRow, error: householdError } = await supabaseClient
+    .from("households")
+    .select("id, name")
+    .eq("id", member.household_id)
+    .single();
+
+  if (householdError) {
+    throw householdError;
+  }
+
+  return {
+    householdId: householdRow.id,
+    householdName: householdRow.name,
+    role: member.role
+  };
+}
+
+async function applyAuthenticatedState(session) {
+  currentSession = session;
+
+  if (!session?.user) {
+    currentHouseholdId = "";
+    setAuthUiLoggedOut();
+    setAppAccess(false);
+    showAuthMessage("로그인하면 가족 데이터 동기화 연결을 이어서 붙일 수 있습니다.");
+    return;
+  }
+
+  try {
+    const householdInfo = await loadCurrentHousehold(session.user.id);
+    if (!householdInfo) {
+      currentHouseholdId = "";
+      setAuthUiLoggedIn(session.user.email, "가족 데이터 연결이 아직 없습니다.");
+      setAppAccess(false);
+      showAuthMessage("이 계정은 아직 household에 연결되지 않았습니다. Supabase에서 household_members 연결을 먼저 확인해 주세요.");
+      return;
+    }
+
+    currentHouseholdId = householdInfo.householdId;
+    setAuthUiLoggedIn(session.user.email, `${householdInfo.householdName} · ${householdInfo.role}`);
+    showAuthMessage("");
+    setAppAccess(true);
+    bootApp();
+  } catch (error) {
+    setAuthUiLoggedIn(session.user.email, "가족 데이터 확인 중 오류");
+    setAppAccess(false);
+    showAuthMessage(`가족 데이터 연결 확인 중 오류가 발생했습니다: ${error.message || error}`);
+  }
+}
+
+async function handleLogin() {
+  if (!supabaseClient) {
+    showAuthMessage("먼저 supabase-config.js에 Project URL과 anon key를 넣어 주세요.");
+    return;
+  }
+
+  const email = loginEmail.value.trim();
+  const password = loginPassword.value;
+
+  if (!email || !password) {
+    showAuthMessage("이메일과 비밀번호를 모두 입력해 주세요.");
+    return;
+  }
+
+  showAuthMessage("로그인 중입니다...");
+  loginButton.disabled = true;
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    loginPassword.value = "";
+    await applyAuthenticatedState(data.session);
+  } catch (error) {
+    showAuthMessage(`로그인에 실패했습니다: ${error.message || error}`);
+  } finally {
+    loginButton.disabled = false;
+  }
+}
+
+async function handleLogout() {
+  if (!supabaseClient) {
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    showAuthMessage(`로그아웃 중 오류가 발생했습니다: ${error.message || error}`);
+    return;
+  }
+
+  await applyAuthenticatedState(null);
+}
+
+async function initializeSupabaseAuth() {
+  if (!supabaseClient) {
+    setAuthUiLoggedOut();
+    setAppAccess(true);
+    bootApp();
+    showAuthMessage("Supabase 설정값이 아직 비어 있어서 현재는 기기 내 저장(localStorage) 방식으로만 실행 중입니다.");
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    setAuthUiLoggedOut();
+    setAppAccess(false);
+    showAuthMessage(`세션 확인 중 오류가 발생했습니다: ${error.message || error}`);
+    return;
+  }
+
+  await applyAuthenticatedState(data.session);
+
+  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    await applyAuthenticatedState(session);
+  });
 }
 
 function formatCurrency(value) {
@@ -1822,6 +2012,20 @@ document.addEventListener("click", (event) => {
   }
 });
 
+loginButton.addEventListener("click", () => {
+  handleLogin();
+});
+
+logoutButton.addEventListener("click", () => {
+  handleLogout();
+});
+
+loginPassword.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    handleLogin();
+  }
+});
+
 if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
   document.body.classList.add("standalone-mode");
 }
@@ -1834,5 +2038,4 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-load();
-setAppTab(currentAppTab);
+initializeSupabaseAuth();
