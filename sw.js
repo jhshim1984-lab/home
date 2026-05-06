@@ -1,9 +1,10 @@
-const CACHE_NAME = "home-manager-v2";
+const CACHE_NAME = "home-manager-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./supabase-config.js",
   "./manifest.webmanifest",
   "./icon.svg"
 ];
@@ -41,6 +42,7 @@ self.addEventListener("fetch", (event) => {
       url.pathname.endsWith("/index.html") ||
       url.pathname.endsWith("/styles.css") ||
       url.pathname.endsWith("/app.js") ||
+      url.pathname.endsWith("/supabase-config.js") ||
       url.pathname.endsWith("/manifest.webmanifest") ||
       url.pathname.endsWith("/icon.svg")
     ));
