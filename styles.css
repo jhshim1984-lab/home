@@ -344,6 +344,19 @@ label {
   flex: 0 0 72px;
 }
 
+.field-row {
+  gap: 8px;
+}
+
+.field-row label + input + label {
+  margin-left: 8px;
+}
+
+.field-row span.inline-korean {
+  width: auto;
+  min-height: auto;
+}
+
 .inline-fields {
   display: grid;
   grid-template-columns: auto minmax(180px, 220px) auto minmax(280px, 1fr);
@@ -586,26 +599,32 @@ input[type="checkbox"] {
 }
 
 .room-type-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 7px 8px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 12px;
   background: #fff;
   font-size: 12px;
+  font-weight: 700;
   color: var(--muted);
+  line-height: 1;
   white-space: nowrap;
-  min-width: 0;
 }
 
 .room-type-chip input {
   margin: 0;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
 }
 
 .room-type-controls {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -1565,6 +1584,15 @@ hr {
 
   .room-type {
     justify-content: flex-start;
+  }
+
+  .room-type-controls {
+    width: 100%;
+  }
+
+  .room-type-chip {
+    padding: 8px 6px;
+    font-size: 11px;
   }
 
   .room-top,
