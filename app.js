@@ -284,10 +284,10 @@ async function applyAuthenticatedState(session) {
       const remoteHasContent = snapshotHasContent(remoteSnapshot);
       const localSnapshot = createAppSnapshot();
       const localHasContent = snapshotHasContent(localSnapshot);
-      const remoteTime = remoteSnapshot?.syncedAt ? new Date(remoteSnapshot.syncedAt).getTime() : 0;
-      const localTime = localSnapshotSyncedAt ? new Date(localSnapshotSyncedAt).getTime() : 0;
 
-      if (remoteHasContent && remoteTime >= localTime) {
+      // Once a household has a remote snapshot, treat it as the source of truth
+      // so every device loads the same shared data on refresh/login.
+      if (remoteHasContent) {
         applyAppSnapshot(remoteSnapshot);
       } else if (localHasContent) {
         await pushRemoteAppState();
