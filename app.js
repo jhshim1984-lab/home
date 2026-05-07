@@ -627,11 +627,20 @@ async function loadCurrentHouseholds(userId) {
   }
 
   const rows = Array.isArray(data) ? data : data ? [data] : [];
-  return rows.map((row) => ({
-    householdId: row.household_id,
-    householdName: row.household_name,
-    role: row.role
-  }));
+  const seen = new Set();
+  return rows
+    .map((row) => ({
+      householdId: row.household_id,
+      householdName: row.household_name,
+      role: row.role
+    }))
+    .filter((row) => {
+      if (!row.householdId || seen.has(row.householdId)) {
+        return false;
+      }
+      seen.add(row.householdId);
+      return true;
+    });
 }
 
 async function applyAuthenticatedState(session) {
