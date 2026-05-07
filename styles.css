@@ -1445,7 +1445,6 @@ input[type="checkbox"] {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 12px;
 }
 
