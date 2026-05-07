@@ -2373,10 +2373,10 @@ function renderRentRecords() {
 
   rentRecordsContainer.innerHTML = `
     <div class="rent-records-table-wrap">
-      <table class="rent-records-table">
+        <table class="rent-records-table">
         <colgroup>
           <col style="width:44px;">
-          ${monthHeaders.map(() => '<col style="width:26px;">').join("")}
+          ${monthHeaders.map(() => '<col style="width:13px;">').join("")}
         </colgroup>
         <thead>
           <tr>
