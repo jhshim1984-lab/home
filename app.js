@@ -5,6 +5,7 @@ const childProfileStorageKey = "educationChildren";
 const appTabStorageKey = "appTab";
 const syncMetaKey = "appSyncMeta";
 const remoteAppliedMetaKey = "remoteAppliedMeta";
+const householdSelectionStoragePrefix = "selectedHousehold:";
 const buildingNameInput = document.getElementById("buildingName");
 const supabaseConfig = window.SUPABASE_CONFIG || {};
 const isSupabaseConfigured = Boolean(
@@ -33,6 +34,8 @@ const initialDashboardDate = new Date();
 let dashboardMonth = `${initialDashboardDate.getFullYear()}-${String(initialDashboardDate.getMonth() + 1).padStart(2, "0")}`;
 let currentSession = null;
 let currentHouseholdId = "";
+let currentHouseholdRole = "";
+let currentHouseholds = [];
 let appBooted = false;
 let remoteSyncTimer = null;
 let remoteNoticeTimer = null;
@@ -236,7 +239,9 @@ async function fetchRemoteAppState() {
     return null;
   }
 
-  const { data, error } = await supabaseClient.rpc("get_my_app_state");
+  const { data, error } = await supabaseClient.rpc("get_household_app_state", {
+    target_household_id: currentHouseholdId
+  });
 
   if (error) {
     throw error;
@@ -473,6 +478,17 @@ function bootApp() {
   appBooted = true;
 }
 
+function resetToBlankAppState() {
+  buildings = [newBuilding()];
+  academies = [];
+  educationEntries = [];
+  childProfiles = defaultChildProfiles();
+  current = 0;
+  currentAppTab = "dashboard";
+  localSnapshotSyncedAt = new Date().toISOString();
+  persistLocalState(false);
+}
+
 function showAuthMessage(message = "", isVisible = true) {
   authMessage.innerText = message;
   authMessage.classList.toggle("hidden", !isVisible || !message);
@@ -480,6 +496,21 @@ function showAuthMessage(message = "", isVisible = true) {
 
 function setAppAccess(isAllowed) {
   appShell.classList.toggle("hidden", !isAllowed);
+}
+
+function getHouseholdSelectionKey(userId) {
+  return `${householdSelectionStoragePrefix}${userId}`;
+}
+
+function getStoredHouseholdSelection(userId) {
+  return localStorage.getItem(getHouseholdSelectionKey(userId)) || "";
+}
+
+function storeHouseholdSelection(userId, householdId) {
+  if (!userId) {
+    return;
+  }
+  localStorage.setItem(getHouseholdSelectionKey(userId), householdId || "");
 }
 
 async function withAuthTimeout(promise, timeoutMessage) {
@@ -500,6 +531,8 @@ function setAuthUiLoggedOut() {
   authStatusBar.classList.add("hidden");
   authUserEmail.innerText = "-";
   householdNameLabel.innerText = "가족 데이터에 로그인해 주세요.";
+  householdSelect.classList.add("hidden");
+  householdSelect.innerHTML = "";
 }
 
 function setAuthUiLoggedIn(userEmail, householdLabel) {
@@ -509,27 +542,96 @@ function setAuthUiLoggedIn(userEmail, householdLabel) {
   householdNameLabel.innerText = householdLabel || "가족 데이터 연결됨";
 }
 
-async function loadCurrentHousehold(userId) {
-  if (!supabaseClient || !userId) {
-    return null;
+function renderHouseholdSelector(userId) {
+  if (!userId || currentHouseholds.length <= 1) {
+    householdSelect.classList.add("hidden");
+    householdSelect.innerHTML = "";
+    return;
   }
 
-  const { data, error } = await supabaseClient.rpc("get_my_household");
+  householdSelect.innerHTML = currentHouseholds.map((household) => `
+    <option value="${household.householdId}">${household.householdName} · ${household.role}</option>
+  `).join("");
+  householdSelect.value = currentHouseholdId;
+  householdSelect.classList.remove("hidden");
+}
+
+async function switchHousehold(householdId, options = {}) {
+  const { userId = "", announce = true } = options;
+  const nextHousehold = currentHouseholds.find((item) => item.householdId === householdId);
+  if (!nextHousehold) {
+    return;
+  }
+
+  stopRemoteUpdatePolling();
+  currentHouseholdId = nextHousehold.householdId;
+  currentHouseholdRole = nextHousehold.role;
+  latestRemoteUpdatedAt = "";
+  rememberAppliedRemoteUpdatedAt("");
+  localChangesPending = false;
+  currentAppTab = "dashboard";
+  localStorage.setItem(appTabStorageKey, currentAppTab);
+  storeHouseholdSelection(userId, currentHouseholdId);
+  setAuthUiLoggedIn(currentSession?.user?.email, `${nextHousehold.householdName} · ${nextHousehold.role}`);
+  renderHouseholdSelector(userId);
+
+  try {
+    const remoteState = await fetchRemoteAppState();
+    const remoteSnapshot = remoteState?.payload || null;
+    const parsedSnapshot = typeof remoteSnapshot === "string"
+      ? (() => {
+          try {
+            return JSON.parse(remoteSnapshot);
+          } catch (_error) {
+            return null;
+          }
+        })()
+      : remoteSnapshot;
+
+    if (snapshotHasContent(parsedSnapshot)) {
+      applyAppSnapshot(parsedSnapshot);
+      latestRemoteUpdatedAt = remoteState?.updatedAt || parsedSnapshot?.syncedAt || "";
+      rememberAppliedRemoteUpdatedAt(latestRemoteUpdatedAt);
+    } else {
+      resetToBlankAppState();
+      latestRemoteUpdatedAt = "";
+      rememberAppliedRemoteUpdatedAt("");
+    }
+  } catch (_error) {
+    resetToBlankAppState();
+  }
+
+  if (appBooted) {
+    load();
+    setAppTab("dashboard");
+  }
+
+  startRemoteUpdatePolling();
+  startRemoteUpdateRealtime();
+  checkForRemoteUpdates({ announce: false });
+
+  if (announce) {
+    showAuthMessage(`현재 보고 있는 데이터는 ${nextHousehold.householdName}입니다. 이 기기에서 수정한 내용은 자동으로 클라우드에 올라갑니다.`);
+  }
+}
+
+async function loadCurrentHouseholds(userId) {
+  if (!supabaseClient || !userId) {
+    return [];
+  }
+
+  const { data, error } = await supabaseClient.rpc("get_my_households");
 
   if (error) {
     throw error;
   }
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) {
-    return null;
-  }
-
-  return {
+  const rows = Array.isArray(data) ? data : data ? [data] : [];
+  return rows.map((row) => ({
     householdId: row.household_id,
     householdName: row.household_name,
     role: row.role
-  };
+  }));
 }
 
 async function applyAuthenticatedState(session) {
@@ -537,6 +639,8 @@ async function applyAuthenticatedState(session) {
 
   if (!session?.user) {
     currentHouseholdId = "";
+    currentHouseholdRole = "";
+    currentHouseholds = [];
     remoteSyncAvailable = true;
     syncMessageShown = false;
     latestRemoteUpdatedAt = "";
@@ -549,8 +653,8 @@ async function applyAuthenticatedState(session) {
   }
 
   try {
-    const householdInfo = await loadCurrentHousehold(session.user.id);
-    if (!householdInfo) {
+    currentHouseholds = await loadCurrentHouseholds(session.user.id);
+    if (!currentHouseholds.length) {
       currentHouseholdId = "";
       setAuthUiLoggedIn(session.user.email, "가족 데이터 연결이 아직 없습니다.");
       setAppAccess(true);
@@ -558,25 +662,20 @@ async function applyAuthenticatedState(session) {
       showAuthMessage("이 계정은 아직 household에 연결되지 않았습니다. Supabase에서 household_members 연결을 먼저 확인해 주세요.");
       return;
     }
-
-    currentHouseholdId = householdInfo.householdId;
-    setAuthUiLoggedIn(session.user.email, `${householdInfo.householdName} · ${householdInfo.role}`);
     remoteSyncAvailable = true;
     syncMessageShown = false;
-    appliedRemoteUpdatedAt = "";
-    latestRemoteUpdatedAt = "";
-    setRemoteUpdateNotice(false);
-    currentAppTab = "dashboard";
-    localStorage.setItem(appTabStorageKey, currentAppTab);
 
     bootApp();
     setAppAccess(true);
-    showAuthMessage("이 기기에서 수정한 내용은 자동으로 클라우드에 올라갑니다. 새 데이터가 오면 `새 데이터 받기`로 알려드립니다.");
-    startRemoteUpdatePolling();
-    startRemoteUpdateRealtime();
-    checkForRemoteUpdates({ announce: false });
+    const preferredHouseholdId = getStoredHouseholdSelection(session.user.id);
+    const initialHousehold = currentHouseholds.find((item) => item.householdId === preferredHouseholdId) || currentHouseholds[0];
+    await switchHousehold(initialHousehold.householdId, {
+      userId: session.user.id,
+      announce: false
+    });
   } catch (error) {
     currentHouseholdId = "";
+    currentHouseholds = [];
     setAuthUiLoggedIn(session.user.email, "가족 데이터 연결 확인 보류");
     setAppAccess(true);
     bootApp();
@@ -630,6 +729,8 @@ async function handleLogout() {
 
   stopRemoteUpdatePolling();
   currentHouseholdId = "";
+  currentHouseholdRole = "";
+  currentHouseholds = [];
   currentSession = null;
   remoteSyncAvailable = true;
   syncMessageShown = false;
@@ -2800,6 +2901,16 @@ loginPassword.addEventListener("keydown", (event) => {
 
 refreshRemoteButton.addEventListener("click", () => {
   refreshFromRemoteSnapshot(true);
+});
+
+householdSelect.addEventListener("change", () => {
+  if (!currentSession?.user?.id || !householdSelect.value) {
+    return;
+  }
+  switchHousehold(householdSelect.value, {
+    userId: currentSession.user.id,
+    announce: true
+  });
 });
 
 pushRemoteButton.addEventListener("click", async () => {

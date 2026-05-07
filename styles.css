@@ -81,6 +81,16 @@ body {
   box-shadow: 0 8px 18px rgba(242, 140, 40, 0.22);
 }
 
+.auth-status-bar select {
+  border: 1px solid var(--accent-soft);
+  background: #fffdfa;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 9px 12px;
+  min-width: 160px;
+  font-weight: 700;
+}
+
 .auth-status-bar button.has-update {
   border-color: #cf3f16;
   background: linear-gradient(180deg, #ff8a6f 0%, #e75a2c 100%);
