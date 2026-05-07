@@ -3,6 +3,7 @@ const educationStorageKey = "educationExpenses";
 const academyStorageKey = "educationAcademies";
 const appTabStorageKey = "appTab";
 const syncMetaKey = "appSyncMeta";
+const remoteAppliedMetaKey = "remoteAppliedMeta";
 const buildingNameInput = document.getElementById("buildingName");
 const supabaseConfig = window.SUPABASE_CONFIG || {};
 const isSupabaseConfigured = Boolean(
@@ -30,10 +31,14 @@ let currentSession = null;
 let currentHouseholdId = "";
 let appBooted = false;
 let remoteSyncTimer = null;
+let remoteNoticeTimer = null;
 let remoteSyncAvailable = true;
 let syncMessageShown = false;
 let localSnapshotSyncedAt = localStorage.getItem(syncMetaKey) || "";
 let localChangesPending = false;
+let latestRemoteUpdatedAt = "";
+let appliedRemoteUpdatedAt = localStorage.getItem(remoteAppliedMetaKey) || "";
+let remoteUpdateAvailable = false;
 
 function newBuilding() {
   return {
@@ -66,6 +71,7 @@ function persistLocalState(markDirty = true) {
     localChangesPending = true;
     localSnapshotSyncedAt = new Date().toISOString();
     localStorage.setItem(syncMetaKey, localSnapshotSyncedAt);
+    queueRemoteSync();
   }
 }
 
@@ -142,6 +148,11 @@ function canUseRemoteSync() {
   return Boolean(supabaseClient && currentHouseholdId && remoteSyncAvailable);
 }
 
+function rememberAppliedRemoteUpdatedAt(value) {
+  appliedRemoteUpdatedAt = value || "";
+  localStorage.setItem(remoteAppliedMetaKey, appliedRemoteUpdatedAt);
+}
+
 async function fetchRemoteAppState() {
   if (!canUseRemoteSync()) {
     return null;
@@ -154,15 +165,22 @@ async function fetchRemoteAppState() {
   }
 
   const row = Array.isArray(data) ? data[0] : data;
-  return row?.payload || null;
+  if (!row) {
+    return null;
+  }
+
+  return {
+    payload: row.payload || null,
+    updatedAt: row.updated_at || ""
+  };
 }
 
 async function pushRemoteAppState() {
   if (!canUseRemoteSync()) {
-    return;
+    return "";
   }
 
-  const { error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("app_states")
     .upsert({
       household_id: currentHouseholdId,
@@ -170,11 +188,15 @@ async function pushRemoteAppState() {
       updated_at: new Date().toISOString()
     }, {
       onConflict: "household_id"
-    });
+    })
+    .select("updated_at")
+    .single();
 
   if (error) {
     throw error;
   }
+
+  return data?.updated_at || new Date().toISOString();
 }
 
 function disableRemoteSyncWithMessage(message) {
@@ -191,8 +213,11 @@ async function syncRemoteNow() {
   }
 
   try {
-    await pushRemoteAppState();
+    const updatedAt = await pushRemoteAppState();
     localChangesPending = false;
+    latestRemoteUpdatedAt = updatedAt;
+    rememberAppliedRemoteUpdatedAt(updatedAt);
+    setRemoteUpdateNotice(false);
     return true;
   } catch (error) {
     disableRemoteSyncWithMessage(`Supabase 동기화 중 오류가 발생했습니다: ${error.message || error}`);
@@ -208,7 +233,7 @@ function queueRemoteSync() {
   clearTimeout(remoteSyncTimer);
   remoteSyncTimer = window.setTimeout(() => {
     syncRemoteNow();
-  }, 120);
+  }, 700);
 }
 
 async function refreshFromRemoteSnapshot(force = false) {
@@ -223,7 +248,8 @@ async function refreshFromRemoteSnapshot(force = false) {
 
   try {
     showAuthMessage("원격 데이터 새로고침 중...");
-    const remoteSnapshot = await fetchRemoteAppState();
+    const remoteState = await fetchRemoteAppState();
+    const remoteSnapshot = remoteState?.payload || null;
     const parsedSnapshot = typeof remoteSnapshot === "string"
       ? (() => {
           try {
@@ -240,6 +266,9 @@ async function refreshFromRemoteSnapshot(force = false) {
     }
 
     applyAppSnapshot(parsedSnapshot);
+    latestRemoteUpdatedAt = remoteState?.updatedAt || parsedSnapshot?.syncedAt || "";
+    rememberAppliedRemoteUpdatedAt(latestRemoteUpdatedAt);
+    setRemoteUpdateNotice(false);
     if (appBooted) {
       load();
       setAppTab(currentAppTab);
@@ -255,6 +284,59 @@ async function refreshFromRemoteSnapshot(force = false) {
   } catch (error) {
     disableRemoteSyncWithMessage(`Supabase 데이터 새로고침 중 오류가 발생했습니다: ${error.message || error}`);
   }
+}
+
+function setRemoteUpdateNotice(hasUpdate) {
+  remoteUpdateAvailable = hasUpdate;
+  refreshRemoteButton.classList.toggle("has-update", hasUpdate);
+  refreshRemoteButton.innerText = hasUpdate ? "새 데이터 받기" : "동기화 새로고침";
+}
+
+async function checkForRemoteUpdates() {
+  if (!canUseRemoteSync() || localChangesPending) {
+    return;
+  }
+
+  try {
+    const remoteState = await fetchRemoteAppState();
+    const remoteUpdatedAt = remoteState?.updatedAt || "";
+
+    if (!remoteUpdatedAt) {
+      setRemoteUpdateNotice(false);
+      return;
+    }
+
+    latestRemoteUpdatedAt = remoteUpdatedAt;
+    const hasUpdate = !appliedRemoteUpdatedAt || remoteUpdatedAt > appliedRemoteUpdatedAt;
+    setRemoteUpdateNotice(hasUpdate);
+
+    if (hasUpdate) {
+      const syncedAtLabel = new Date(remoteUpdatedAt).toLocaleString("ko-KR");
+      showAuthMessage(`다른 기기에서 새 데이터가 올라왔습니다. 동기화 새로고침을 누르면 반영됩니다. 기준 시각: ${syncedAtLabel}`);
+    }
+  } catch (error) {
+    disableRemoteSyncWithMessage(`원격 변경 확인 중 오류가 발생했습니다: ${error.message || error}`);
+  }
+}
+
+function startRemoteUpdatePolling() {
+  clearInterval(remoteNoticeTimer);
+
+  if (!canUseRemoteSync()) {
+    return;
+  }
+
+  remoteNoticeTimer = window.setInterval(() => {
+    checkForRemoteUpdates();
+  }, 12000);
+}
+
+function stopRemoteUpdatePolling() {
+  clearInterval(remoteNoticeTimer);
+  remoteNoticeTimer = null;
+  clearTimeout(remoteSyncTimer);
+  remoteSyncTimer = null;
+  setRemoteUpdateNotice(false);
 }
 
 function bootApp() {
@@ -320,6 +402,9 @@ async function applyAuthenticatedState(session) {
     currentHouseholdId = "";
     remoteSyncAvailable = true;
     syncMessageShown = false;
+    latestRemoteUpdatedAt = "";
+    localChangesPending = false;
+    stopRemoteUpdatePolling();
     setAuthUiLoggedOut();
     setAppAccess(false);
     showAuthMessage("로그인하면 가족 데이터 동기화 연결을 이어서 붙일 수 있습니다.");
@@ -339,12 +424,16 @@ async function applyAuthenticatedState(session) {
 
     currentHouseholdId = householdInfo.householdId;
     setAuthUiLoggedIn(session.user.email, `${householdInfo.householdName} · ${householdInfo.role}`);
-    showAuthMessage("현재는 안전한 수동 동기화 모드입니다. 이 기기 데이터를 공유하려면 `클라우드 올리기`, 다른 기기 데이터를 받으려면 `동기화 새로고침`을 눌러 주세요.");
     remoteSyncAvailable = true;
     syncMessageShown = false;
+    appliedRemoteUpdatedAt = "";
+    latestRemoteUpdatedAt = "";
 
     bootApp();
     setAppAccess(true);
+    showAuthMessage("이 기기에서 수정한 내용은 자동으로 클라우드에 올라갑니다. 다른 기기에서 새 데이터가 올라오면 `새 데이터 받기`로 알려드립니다.");
+    startRemoteUpdatePolling();
+    checkForRemoteUpdates();
   } catch (error) {
     currentHouseholdId = "";
     setAuthUiLoggedIn(session.user.email, "가족 데이터 연결 확인 보류");
@@ -2334,6 +2423,18 @@ pushRemoteButton.addEventListener("click", async () => {
   const success = await syncRemoteNow();
   if (success) {
     showAuthMessage("현재 기기 데이터를 클라우드에 올렸습니다.");
+  }
+});
+
+window.addEventListener("focus", () => {
+  if (canUseRemoteSync()) {
+    checkForRemoteUpdates();
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && canUseRemoteSync()) {
+    checkForRemoteUpdates();
   }
 });
 
