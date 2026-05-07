@@ -381,6 +381,11 @@ h3 {
   flex: 1;
 }
 
+.building-order-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .tabs button,
 .actions button {
   border: 1px solid var(--accent-strong);
@@ -1051,15 +1056,15 @@ input[type="checkbox"] {
   gap: 10px;
 }
 
-.education-child-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .education-child-manager-title {
   font-size: 14px;
   font-weight: 700;
+}
+
+.education-child-body-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
 }
 
 .education-child-list {
@@ -1495,6 +1500,7 @@ input[type="checkbox"] {
 .education-yearly-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 12px;
 }
 

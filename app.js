@@ -373,7 +373,7 @@ function setRemoteUpdateNotice(hasUpdate) {
 async function checkForRemoteUpdates(options = {}) {
   const { announce = true } = options;
 
-  if (!canUseRemoteSync() || localChangesPending) {
+  if (!canUseRemoteSync()) {
     return;
   }
 
@@ -438,10 +438,6 @@ function startRemoteUpdateRealtime() {
         }
 
         latestRemoteUpdatedAt = nextUpdatedAt;
-
-        if (localChangesPending) {
-          return;
-        }
 
         const hasUpdate = !appliedRemoteUpdatedAt || nextUpdatedAt > appliedRemoteUpdatedAt;
         setRemoteUpdateNotice(hasUpdate);
@@ -933,12 +929,12 @@ function renderChildManager() {
   educationChildManager.innerHTML = `
     <div class="education-child-manager-head">
       <div class="education-child-manager-title">자녀관리</div>
-      <div class="education-child-head-actions">
-        <button type="button" class="collapse-toggle education-child-toggle">${childManagerCollapsed ? "열기" : "접기"}</button>
-        <button type="button" class="education-child-add" id="addChildProfileButton">자녀 추가</button>
-      </div>
+      <button type="button" class="collapse-toggle education-child-toggle">${childManagerCollapsed ? "열기" : "접기"}</button>
     </div>
     <div class="education-child-manager-body${childManagerCollapsed ? " hidden" : ""}">
+      <div class="education-child-body-actions">
+        <button type="button" class="education-child-add" id="addChildProfileButton">자녀 추가</button>
+      </div>
       <div class="education-child-list">
       ${childProfiles.map((profile, index) => `
         <div class="education-child-row">
@@ -1346,6 +1342,10 @@ function renderEducationYearlyTable() {
   educationYearlyTable.innerHTML = `
     <div class="education-yearly-wrap">
       <table class="education-yearly-table">
+        <colgroup>
+          <col style="width: 84px;">
+          ${childProfiles.map(() => '<col>')}
+        </colgroup>
         <thead>
           <tr>
             <th>월</th>
@@ -1479,6 +1479,7 @@ function updateHoldingInfo() {
 }
 
 function renderTabs() {
+  normalizeBuildingsState();
   tabs.innerHTML = "";
 
   buildings.forEach((building, index) => {
@@ -1505,6 +1506,8 @@ function renderTabs() {
   };
   tabs.appendChild(add);
   deleteBuildingButton.innerText = buildings.length > 1 ? "현재 건물 삭제" : "현재 건물 비우기";
+  moveBuildingLeftButton.disabled = current <= 0;
+  moveBuildingRightButton.disabled = current >= buildings.length - 1;
 }
 
 function getRoomLabels() {
@@ -1567,6 +1570,45 @@ function collectRoomsFromDom() {
   }));
 }
 
+function isMeaningfulBuilding(building) {
+  if (!building || typeof building !== "object") {
+    return false;
+  }
+
+  const hasRooms = Array.isArray(building.rooms) && building.rooms.some((room) => (
+    room && (
+      room.tenantName ||
+      room.tenantPhone ||
+      parseNumber(room.d) ||
+      parseNumber(room.m) ||
+      room.note ||
+      room.moveIn ||
+      room.moveOut
+    )
+  ));
+
+  return Boolean(
+    String(building.name || "").trim() ||
+    String(building.address || "").trim() ||
+    String(building.apartmentDong || "").trim() ||
+    String(building.apartmentHo || "").trim() ||
+    parseNumber(building.price) ||
+    parseNumber(building.loan) ||
+    hasRooms
+  );
+}
+
+function normalizeBuildingsState() {
+  const hasMeaningfulBuilding = buildings.some((building) => isMeaningfulBuilding(building));
+  if (hasMeaningfulBuilding) {
+    buildings = buildings.filter((building) => isMeaningfulBuilding(building));
+  }
+  if (buildings.length === 0) {
+    buildings = [newBuilding()];
+  }
+  current = Math.min(current, buildings.length - 1);
+}
+
 function formatNumericInputs() {
   document.querySelectorAll(".num, .d, .m").forEach((input) => {
     if (document.activeElement !== input) {
@@ -1605,6 +1647,7 @@ function save() {
 }
 
 function load() {
+  normalizeBuildingsState();
   const building = buildings[current];
 
   buildingNameInput.value = building.name;
@@ -1628,7 +1671,7 @@ function load() {
   setFloorSettingsCollapsed(true);
   updateBuildingTypeUi();
 
-  generate();
+  generate(false);
 
   document.querySelectorAll(".room").forEach((room, index) => {
     const roomData = building.rooms[index];
@@ -1726,8 +1769,8 @@ function createRoomCard(roomLabel, roomState) {
   return card;
 }
 
-function generate() {
-  const existingRooms = collectRoomsFromDom();
+function generate(preserveCurrentDom = true) {
+  const existingRooms = preserveCurrentDom ? collectRoomsFromDom() : [];
   const currentFloorCollapsed = [0, 1, 2, 3, 4].map((index) => {
     const floorBox = document.querySelector(`.floor-box[data-floor="${index}"]`);
     if (floorBox) {
@@ -1748,7 +1791,9 @@ function generate() {
     `;
     const wrap = document.createElement("div");
     wrap.className = "rooms";
-    const roomState = buildings[current].rooms[0] || existingRooms[0] || {};
+    const roomState = preserveCurrentDom
+      ? (buildings[current].rooms[0] || existingRooms[0] || {})
+      : (buildings[current].rooms[0] || {});
     wrap.appendChild(createRoomCard(getApartmentRoomLabel(), roomState));
     box.appendChild(wrap);
     rooms.appendChild(box);
@@ -1786,7 +1831,9 @@ function generate() {
         const list = child.querySelector(".rooms");
         return sum + (list ? list.childElementCount : 0);
       }, 0);
-      const roomState = buildings[current].rooms[roomIndex] || existingRooms[roomIndex] || {};
+      const roomState = preserveCurrentDom
+        ? (buildings[current].rooms[roomIndex] || existingRooms[roomIndex] || {})
+        : (buildings[current].rooms[roomIndex] || {});
       wrap.appendChild(createRoomCard(`${floorRoomNumbers[roomNumber]}호`, roomState));
     }
 
@@ -2539,8 +2586,8 @@ deleteBuildingButton.addEventListener("click", () => {
       return;
     }
     buildings = [newBuilding()];
-    current = 0;
-  } else {
+      current = 0;
+    } else {
     const currentName = buildings[current]?.name || `건물${current + 1}`;
     if (!window.confirm(`${currentName} 건물을 삭제할까요?`)) {
       return;
@@ -2549,7 +2596,33 @@ deleteBuildingButton.addEventListener("click", () => {
     current = Math.max(0, current - 1);
   }
 
-  localStorage.setItem(storageKey, JSON.stringify(buildings));
+    localStorage.setItem(storageKey, JSON.stringify(buildings));
+    load();
+  });
+
+moveBuildingLeftButton.addEventListener("click", () => {
+  if (current <= 0) {
+    return;
+  }
+  save();
+  const temp = buildings[current - 1];
+  buildings[current - 1] = buildings[current];
+  buildings[current] = temp;
+  current -= 1;
+  persistLocalState();
+  load();
+});
+
+moveBuildingRightButton.addEventListener("click", () => {
+  if (current >= buildings.length - 1) {
+    return;
+  }
+  save();
+  const temp = buildings[current + 1];
+  buildings[current + 1] = buildings[current];
+  buildings[current] = temp;
+  current += 1;
+  persistLocalState();
   load();
 });
 
