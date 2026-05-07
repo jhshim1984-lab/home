@@ -1458,12 +1458,6 @@ input[type="checkbox"] {
   margin-left: 0;
 }
 
-.academy-quick-date-label {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
-}
-
 .academy-quick-date-inline {
   display: flex;
   align-items: center;
