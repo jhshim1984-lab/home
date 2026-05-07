@@ -48,6 +48,10 @@ let localChangesPending = false;
 let latestRemoteUpdatedAt = "";
 let appliedRemoteUpdatedAt = localStorage.getItem(remoteAppliedMetaKey) || "";
 let remoteUpdateAvailable = false;
+const appTabOrder = ["dashboard", "rental", "education", "report"];
+let appSwipeStartX = null;
+let appSwipeStartY = null;
+let appSwipeTracking = false;
 
 function newBuilding() {
   return {
@@ -1619,6 +1623,30 @@ function setAppTab(tabName) {
   }
 }
 
+function isSwipeIgnoredTarget(target) {
+  if (!target || !(target instanceof Element)) {
+    return false;
+  }
+
+  return Boolean(
+    target.closest("input, textarea, select, button, a, iframe, .rent-records-table-wrap, .education-yearly-wrap, .tabs")
+  );
+}
+
+function shiftAppTab(direction) {
+  const currentIndex = appTabOrder.indexOf(currentAppTab);
+  if (currentIndex === -1) {
+    return;
+  }
+
+  const nextIndex = currentIndex + direction;
+  if (nextIndex < 0 || nextIndex >= appTabOrder.length) {
+    return;
+  }
+
+  setAppTab(appTabOrder[nextIndex]);
+}
+
 function updateHoldingInfo() {
   if (!buyDate.value) {
     holdYears.innerText = "-";
@@ -3000,6 +3028,47 @@ pushRemoteButton.addEventListener("click", async () => {
     showAuthMessage("현재 기기 데이터를 클라우드에 올렸습니다.");
   }
 });
+
+appShell.addEventListener("touchstart", (event) => {
+  if (event.touches.length !== 1 || isSwipeIgnoredTarget(event.target)) {
+    appSwipeTracking = false;
+    return;
+  }
+
+  const touch = event.touches[0];
+  appSwipeStartX = touch.clientX;
+  appSwipeStartY = touch.clientY;
+  appSwipeTracking = true;
+}, { passive: true });
+
+appShell.addEventListener("touchend", (event) => {
+  if (!appSwipeTracking || appSwipeStartX === null || appSwipeStartY === null) {
+    appSwipeTracking = false;
+    appSwipeStartX = null;
+    appSwipeStartY = null;
+    return;
+  }
+
+  const touch = event.changedTouches[0];
+  const deltaX = touch.clientX - appSwipeStartX;
+  const deltaY = touch.clientY - appSwipeStartY;
+  const absDeltaX = Math.abs(deltaX);
+  const absDeltaY = Math.abs(deltaY);
+
+  appSwipeTracking = false;
+  appSwipeStartX = null;
+  appSwipeStartY = null;
+
+  if (absDeltaX < 60 || absDeltaX <= absDeltaY) {
+    return;
+  }
+
+  if (deltaX < 0) {
+    shiftAppTab(1);
+  } else {
+    shiftAppTab(-1);
+  }
+}, { passive: true });
 
 window.addEventListener("focus", () => {
   if (canUseRemoteSync()) {
