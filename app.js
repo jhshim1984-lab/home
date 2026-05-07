@@ -1601,7 +1601,9 @@ function isMeaningfulBuilding(building) {
 function normalizeBuildingsState() {
   const hasMeaningfulBuilding = buildings.some((building) => isMeaningfulBuilding(building));
   if (hasMeaningfulBuilding) {
-    buildings = buildings.filter((building) => isMeaningfulBuilding(building));
+    buildings = buildings.filter((building, index) => (
+      index === current || isMeaningfulBuilding(building)
+    ));
   }
   if (buildings.length === 0) {
     buildings = [newBuilding()];
