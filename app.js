@@ -2444,11 +2444,7 @@ function renderRentRecords() {
   });
 
   document.querySelectorAll(".rent-record-cell").forEach((cell) => {
-    cell.addEventListener("click", (event) => {
-      if (event.target.classList.contains("rent-record-date") || event.target.classList.contains("rent-record-input")) {
-        return;
-      }
-
+    const handleCellTap = () => {
       const amountInput = cell.querySelector(".rent-record-input");
       const roomLabel = cell.dataset.room;
       const month = cell.dataset.month;
@@ -2473,7 +2469,29 @@ function renderRentRecords() {
 
       amountInput.value = baseRent;
       upsertRentRecordAmount(roomLabel, month, baseRent);
+    };
+
+    cell.addEventListener("click", (event) => {
+      if (event.target.classList.contains("rent-record-date")) {
+        return;
+      }
+      if (event.target.classList.contains("rent-record-input")) {
+        event.preventDefault();
+      }
+      handleCellTap();
     });
+
+    const amountInput = cell.querySelector(".rent-record-input");
+    if (amountInput) {
+      amountInput.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+      });
+      amountInput.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        handleCellTap();
+      });
+    }
   });
 }
 
