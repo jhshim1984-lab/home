@@ -2410,23 +2410,6 @@ function renderRentRecords() {
       input.value = formattedValue;
       upsertRentRecordAmount(roomLabel, month, formattedValue);
     });
-
-    input.addEventListener("focus", () => {
-      if (input.value.trim()) {
-        return;
-      }
-
-      const baseRent = formatInputNumber(
-        document.querySelector(`.rent-record-cell[data-room="${input.dataset.room}"][data-month="${input.dataset.month}"]`)?.dataset.baseRent || ""
-      );
-
-      if (!baseRent) {
-        return;
-      }
-
-      input.value = baseRent;
-      upsertRentRecordAmount(input.dataset.room, input.dataset.month, baseRent);
-    });
   });
 
   document.querySelectorAll(".rent-record-date").forEach((input) => {
@@ -2462,7 +2445,7 @@ function renderRentRecords() {
 
   document.querySelectorAll(".rent-record-cell").forEach((cell) => {
     cell.addEventListener("click", (event) => {
-      if (event.target.classList.contains("rent-record-date")) {
+      if (event.target.classList.contains("rent-record-date") || event.target.classList.contains("rent-record-input")) {
         return;
       }
 
