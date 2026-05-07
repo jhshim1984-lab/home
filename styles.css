@@ -1586,7 +1586,7 @@ input[type="checkbox"] {
 
 .rent-records-table {
   width: max-content;
-  min-width: 430px;
+  min-width: 820px;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 14px;
@@ -1686,7 +1686,7 @@ input[type="checkbox"] {
 }
 
 .rent-month-col {
-  width: 13px;
+  width: 56px;
 }
 
 .rent-room-meta {
@@ -1917,7 +1917,7 @@ hr {
   }
 
   .rent-records-table {
-      min-width: 430px;
+      min-width: 820px;
       font-size: 13px;
     }
 
@@ -1926,7 +1926,7 @@ hr {
     }
   
   .rent-month-col {
-      width: 14px;
+      width: 56px;
     }
 
   .rent-record-input,

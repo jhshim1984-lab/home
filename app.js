@@ -2376,7 +2376,7 @@ function renderRentRecords() {
         <table class="rent-records-table">
         <colgroup>
           <col style="width:44px;">
-          ${monthHeaders.map(() => '<col style="width:13px;">').join("")}
+          ${monthHeaders.map(() => '<col style="width:56px;">').join("")}
         </colgroup>
         <thead>
           <tr>
