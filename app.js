@@ -1297,16 +1297,6 @@ function renderEducationTab() {
       .filter((entry) => entry.child === profile.id)
       .reduce((sum, entry) => sum + parseNumber(entry.amount), 0)
   }));
-  const grandTotal = childSummaries.reduce((sum, item) => sum + item.total, 0);
-
-  educationTotalAmount.innerText = formatCurrency(grandTotal);
-  educationChildSummaryCards.innerHTML = childSummaries.map((item) => `
-    <div class="summary-card">${item.name}<span>${formatCurrency(item.total)}</span></div>
-  `).join("");
-  educationMonthTotalCards.innerHTML = childSummaries.map((item) => `
-    <div class="summary-card">${item.name} 합계<span>${formatCurrency(item.total)}</span></div>
-  `).join("");
-  educationGrandTotal.innerText = formatCurrency(grandTotal);
   setQuickAcademyDetailsCollapsed(quickAcademyDetailsCollapsed);
   setEducationSubsectionCollapsed("academy", academySectionCollapsed);
   setEducationSubsectionCollapsed("direct", directEducationSectionCollapsed);
