@@ -32,6 +32,7 @@ let currentHouseholdId = "";
 let appBooted = false;
 let remoteSyncTimer = null;
 let remoteNoticeTimer = null;
+let remoteRealtimeChannel = null;
 let remoteSyncAvailable = true;
 let syncMessageShown = false;
 let localSnapshotSyncedAt = localStorage.getItem(syncMetaKey) || "";
@@ -331,11 +332,59 @@ function startRemoteUpdatePolling() {
   }, 12000);
 }
 
+function startRemoteUpdateRealtime() {
+  if (!canUseRemoteSync() || !supabaseClient) {
+    return;
+  }
+
+  if (remoteRealtimeChannel) {
+    supabaseClient.removeChannel(remoteRealtimeChannel);
+    remoteRealtimeChannel = null;
+  }
+
+  remoteRealtimeChannel = supabaseClient
+    .channel(`app-states-${currentHouseholdId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "app_states",
+        filter: `household_id=eq.${currentHouseholdId}`
+      },
+      (payload) => {
+        const nextUpdatedAt = payload?.new?.updated_at || "";
+        if (!nextUpdatedAt) {
+          return;
+        }
+
+        latestRemoteUpdatedAt = nextUpdatedAt;
+
+        if (localChangesPending) {
+          return;
+        }
+
+        const hasUpdate = !appliedRemoteUpdatedAt || nextUpdatedAt > appliedRemoteUpdatedAt;
+        setRemoteUpdateNotice(hasUpdate);
+
+        if (hasUpdate) {
+          const syncedAtLabel = new Date(nextUpdatedAt).toLocaleString("ko-KR");
+          showAuthMessage(`다른 기기에서 새 데이터가 올라왔습니다. 새 데이터 받기를 누르면 반영됩니다. 기준 시각: ${syncedAtLabel}`);
+        }
+      }
+    )
+    .subscribe();
+}
+
 function stopRemoteUpdatePolling() {
   clearInterval(remoteNoticeTimer);
   remoteNoticeTimer = null;
   clearTimeout(remoteSyncTimer);
   remoteSyncTimer = null;
+  if (remoteRealtimeChannel && supabaseClient) {
+    supabaseClient.removeChannel(remoteRealtimeChannel);
+  }
+  remoteRealtimeChannel = null;
   setRemoteUpdateNotice(false);
 }
 
@@ -433,6 +482,7 @@ async function applyAuthenticatedState(session) {
     setAppAccess(true);
     showAuthMessage("이 기기에서 수정한 내용은 자동으로 클라우드에 올라갑니다. 다른 기기에서 새 데이터가 올라오면 `새 데이터 받기`로 알려드립니다.");
     startRemoteUpdatePolling();
+    startRemoteUpdateRealtime();
     checkForRemoteUpdates();
   } catch (error) {
     currentHouseholdId = "";
