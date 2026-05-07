@@ -50,6 +50,13 @@ body {
   gap: 4px;
 }
 
+.auth-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .auth-copy span,
 .auth-status-copy span {
   color: var(--muted);

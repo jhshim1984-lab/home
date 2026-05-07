@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#f28c28">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="홈 매니저">
+<meta name="apple-mobile-web-app-title" content="홈집사">
 <meta name="mobile-web-app-capable" content="yes">
-<title>홈 매니저</title>
+<title>홈집사</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="./icon.svg">
 <link rel="stylesheet" href="./styles.css">
@@ -16,11 +16,13 @@
 </head>
 <body>
 <div class="container">
-  <h2>홈 매니저</h2>
+  <h2>홈집사</h2>
   <div id="authPanel" class="auth-panel">
     <div class="auth-copy">
-      <strong>가족 로그인</strong>
-      <span id="authHelpText">Supabase 계정으로 로그인하면 부부가 같은 데이터를 함께 사용할 수 있습니다.</span>
+      <div class="auth-copy-row">
+        <strong>홈집사</strong>
+        <span id="authIdentityLabel">가족 로그인</span>
+      </div>
     </div>
     <div id="authForm" class="auth-form">
       <input id="loginEmail" type="email" placeholder="이메일">

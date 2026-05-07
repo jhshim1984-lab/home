@@ -531,6 +531,7 @@ function setAuthUiLoggedOut() {
   authStatusBar.classList.add("hidden");
   authUserEmail.innerText = "-";
   householdNameLabel.innerText = "가족 데이터에 로그인해 주세요.";
+  authIdentityLabel.innerText = "가족 로그인";
   householdSelect.classList.add("hidden");
   householdSelect.innerHTML = "";
 }
@@ -540,6 +541,20 @@ function setAuthUiLoggedIn(userEmail, householdLabel) {
   authStatusBar.classList.remove("hidden");
   authUserEmail.innerText = userEmail || "-";
   householdNameLabel.innerText = householdLabel || "가족 데이터 연결됨";
+}
+
+function getDisplayIdentity(user) {
+  const metadataName = String(user?.user_metadata?.name || user?.user_metadata?.full_name || "").trim();
+  if (metadataName) {
+    return metadataName;
+  }
+
+  const email = String(user?.email || "").trim();
+  if (!email) {
+    return "가족 로그인";
+  }
+
+  return email.split("@")[0] || email;
 }
 
 function renderHouseholdSelector(userId) {
@@ -573,6 +588,7 @@ async function switchHousehold(householdId, options = {}) {
   localStorage.setItem(appTabStorageKey, currentAppTab);
   storeHouseholdSelection(userId, currentHouseholdId);
   setAuthUiLoggedIn(currentSession?.user?.email, `${nextHousehold.householdName} · ${nextHousehold.role}`);
+  authIdentityLabel.innerText = getDisplayIdentity(currentSession?.user);
   renderHouseholdSelector(userId);
 
   try {
@@ -666,6 +682,7 @@ async function applyAuthenticatedState(session) {
     if (!currentHouseholds.length) {
       currentHouseholdId = "";
       setAuthUiLoggedIn(session.user.email, "가족 데이터 연결이 아직 없습니다.");
+      authIdentityLabel.innerText = getDisplayIdentity(session.user);
       setAppAccess(true);
       bootApp();
       showAuthMessage("이 계정은 아직 household에 연결되지 않았습니다. Supabase에서 household_members 연결을 먼저 확인해 주세요.");
@@ -686,6 +703,7 @@ async function applyAuthenticatedState(session) {
     currentHouseholdId = "";
     currentHouseholds = [];
     setAuthUiLoggedIn(session.user.email, "가족 데이터 연결 확인 보류");
+    authIdentityLabel.innerText = getDisplayIdentity(session.user);
     setAppAccess(true);
     bootApp();
     showAuthMessage(`가족 데이터 연결 확인 중 오류가 발생했습니다: ${error.message || error} / 우선은 로컬 모드로 앱을 열었습니다.`);

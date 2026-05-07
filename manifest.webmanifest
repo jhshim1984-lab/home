@@ -1,12 +1,12 @@
 {
-  "name": "홈 매니저",
-  "short_name": "홈 매니저",
+  "name": "홈집사",
+  "short_name": "홈집사",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f7f2eb",
   "theme_color": "#f28c28",
   "lang": "ko",
-  "description": "임대관리, 교육비, 월간 흐름을 함께 관리하는 홈 매니저 웹앱",
+  "description": "임대관리, 교육비, 월간 흐름을 함께 관리하는 홈집사 웹앱",
   "icons": [
     {
       "src": "./icon.svg",
