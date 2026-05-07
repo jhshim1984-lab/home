@@ -293,7 +293,9 @@ function setRemoteUpdateNotice(hasUpdate) {
   refreshRemoteButton.innerText = hasUpdate ? "새 데이터 받기" : "동기화 새로고침";
 }
 
-async function checkForRemoteUpdates() {
+async function checkForRemoteUpdates(options = {}) {
+  const { announce = true } = options;
+
   if (!canUseRemoteSync() || localChangesPending) {
     return;
   }
@@ -311,7 +313,7 @@ async function checkForRemoteUpdates() {
     const hasUpdate = !appliedRemoteUpdatedAt || remoteUpdatedAt > appliedRemoteUpdatedAt;
     setRemoteUpdateNotice(hasUpdate);
 
-    if (hasUpdate) {
+    if (hasUpdate && announce) {
       const syncedAtLabel = new Date(remoteUpdatedAt).toLocaleString("ko-KR");
       showAuthMessage(`다른 기기에서 새 데이터가 올라왔습니다. 동기화 새로고침을 누르면 반영됩니다. 기준 시각: ${syncedAtLabel}`);
     }
@@ -477,13 +479,14 @@ async function applyAuthenticatedState(session) {
     syncMessageShown = false;
     appliedRemoteUpdatedAt = "";
     latestRemoteUpdatedAt = "";
+    setRemoteUpdateNotice(false);
 
     bootApp();
     setAppAccess(true);
-    showAuthMessage("이 기기에서 수정한 내용은 자동으로 클라우드에 올라갑니다. 다른 기기에서 새 데이터가 올라오면 `새 데이터 받기`로 알려드립니다.");
+    showAuthMessage("이 기기에서 수정한 내용은 자동으로 클라우드에 올라갑니다. 새 데이터가 오면 `새 데이터 받기`로 알려드립니다.");
     startRemoteUpdatePolling();
     startRemoteUpdateRealtime();
-    checkForRemoteUpdates();
+    checkForRemoteUpdates({ announce: false });
   } catch (error) {
     currentHouseholdId = "";
     setAuthUiLoggedIn(session.user.email, "가족 데이터 연결 확인 보류");
@@ -534,6 +537,19 @@ async function handleLogout() {
     return;
   }
 
+  stopRemoteUpdatePolling();
+  currentHouseholdId = "";
+  currentSession = null;
+  remoteSyncAvailable = true;
+  syncMessageShown = false;
+  latestRemoteUpdatedAt = "";
+  rememberAppliedRemoteUpdatedAt("");
+  localChangesPending = false;
+  setRemoteUpdateNotice(false);
+  setAuthUiLoggedOut();
+  setAppAccess(false);
+  showAuthMessage("로그아웃 중입니다...");
+
   const { error } = await supabaseClient.auth.signOut();
   if (error) {
     showAuthMessage(`로그아웃 중 오류가 발생했습니다: ${error.message || error}`);
@@ -541,6 +557,11 @@ async function handleLogout() {
   }
 
   await applyAuthenticatedState(null);
+  if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
+    window.setTimeout(() => {
+      window.location.replace(window.location.pathname);
+    }, 60);
+  }
 }
 
 async function initializeSupabaseAuth() {
