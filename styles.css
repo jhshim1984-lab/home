@@ -1681,11 +1681,11 @@ input[type="checkbox"] {
 }
 
 .rent-room-col {
-  width: 72px;
+  width: 44px;
 }
 
 .rent-month-col {
-  width: 52px;
+  width: 26px;
 }
 
 .rent-room-meta {
@@ -1921,12 +1921,12 @@ hr {
   }
 
   .rent-room-col {
-    width: 64px;
-  }
-
+      width: 40px;
+    }
+  
   .rent-month-col {
-    width: 54px;
-  }
+      width: 28px;
+    }
 
   .rent-record-input,
   .rent-interest-input {
