@@ -55,15 +55,20 @@
 
   <section id="rentalSection" class="app-panel app-section">
   <div class="dashboard">
-    <b>전체 포트폴리오</b>
-    <div id="portfolioList"></div>
-    <div class="summary-grid">
-      <div class="summary-card">총 보증금<span id="totalDeposit"></span></div>
-      <div class="summary-card">총 월세<span id="totalRent"></span></div>
-      <div class="summary-card">총 대출<span id="totalLoan"></span></div>
-      <div class="summary-card">총 월 이자<span id="totalInterest"></span></div>
+    <div class="section-heading">
+      <h3>전체 포트폴리오</h3>
+      <button type="button" id="togglePortfolioButton" class="collapse-toggle">열기</button>
     </div>
-    <div class="net-box">전체 월 순수익: <span id="totalNet"></span></div>
+    <div id="portfolioContent" class="collapsed">
+      <div id="portfolioList"></div>
+      <div class="summary-grid">
+        <div class="summary-card">총 보증금<span id="totalDeposit"></span></div>
+        <div class="summary-card">총 월세<span id="totalRent"></span></div>
+        <div class="summary-card">총 대출<span id="totalLoan"></span></div>
+        <div class="summary-card">총 월 이자<span id="totalInterest"></span></div>
+      </div>
+      <div class="net-box">전체 월 순수익: <span id="totalNet"></span></div>
+    </div>
   </div>
 
   <div class="tabs-row">

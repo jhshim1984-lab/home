@@ -3,6 +3,7 @@ const educationStorageKey = "educationExpenses";
 const academyStorageKey = "educationAcademies";
 const childProfileStorageKey = "educationChildren";
 const appTabStorageKey = "appTab";
+const portfolioCollapsedStorageKey = "portfolioCollapsed";
 const syncMetaKey = "appSyncMeta";
 const remoteAppliedMetaKey = "remoteAppliedMeta";
 const householdSelectionStoragePrefix = "selectedHousehold:";
@@ -48,6 +49,7 @@ let localChangesPending = false;
 let latestRemoteUpdatedAt = "";
 let appliedRemoteUpdatedAt = localStorage.getItem(remoteAppliedMetaKey) || "";
 let remoteUpdateAvailable = false;
+let portfolioCollapsed = localStorage.getItem(portfolioCollapsedStorageKey) !== "false";
 const appTabOrder = ["dashboard", "rental", "education", "report"];
 let appSwipeStartX = null;
 let appSwipeStartY = null;
@@ -1055,6 +1057,13 @@ function setQuickAcademyDetailsCollapsed(collapsed) {
   toggleQuickAcademyDetailsButton.innerText = collapsed ? "세부사항 열기" : "세부사항 접기";
 }
 
+function setPortfolioCollapsed(collapsed) {
+  portfolioCollapsed = collapsed;
+  portfolioContent.classList.toggle("collapsed", collapsed);
+  togglePortfolioButton.innerText = collapsed ? "열기" : "접기";
+  localStorage.setItem(portfolioCollapsedStorageKey, String(collapsed));
+}
+
 function setChildManagerCollapsed(collapsed) {
   childManagerCollapsed = collapsed;
   const body = educationChildManager.querySelector(".education-child-manager-body");
@@ -1849,6 +1858,7 @@ function load() {
 
   setPropertyDetailsCollapsed(true);
   setFloorSettingsCollapsed(true);
+  setPortfolioCollapsed(portfolioCollapsed);
   updateBuildingTypeUi();
 
   generate(false);
@@ -2771,6 +2781,10 @@ toggleFloorsButton.addEventListener("click", () => {
   const nextCollapsed = !floorSettings.classList.contains("collapsed");
   setFloorSettingsCollapsed(nextCollapsed);
   save();
+});
+
+togglePortfolioButton.addEventListener("click", () => {
+  setPortfolioCollapsed(!portfolioCollapsed);
 });
 
 deleteBuildingButton.addEventListener("click", () => {
