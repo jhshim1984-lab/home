@@ -21,11 +21,12 @@ let buildings = JSON.parse(localStorage.getItem(storageKey) || "null") || [newBu
 let educationEntries = JSON.parse(localStorage.getItem(educationStorageKey) || "[]");
 let academies = JSON.parse(localStorage.getItem(academyStorageKey) || "[]");
 let childProfiles = normalizeChildProfiles(JSON.parse(localStorage.getItem(childProfileStorageKey) || "null"));
-let currentAppTab = localStorage.getItem(appTabStorageKey) || "rental";
+let currentAppTab = localStorage.getItem(appTabStorageKey) || "dashboard";
 const initialEducationDate = new Date();
 let educationMonth = `${initialEducationDate.getFullYear()}-${String(initialEducationDate.getMonth() + 1).padStart(2, "0")}`;
 let educationCategoryFilter = "all";
 let selectedAcademyId = "";
+let childManagerCollapsed = true;
 let academySectionCollapsed = true;
 let directEducationSectionCollapsed = true;
 const initialDashboardDate = new Date();
@@ -183,7 +184,7 @@ function applyAppSnapshot(snapshot) {
   educationEntries = Array.isArray(snapshot.educationEntries) ? snapshot.educationEntries : [];
   normalizeEducationData();
   current = Math.min(Number(snapshot.current) || 0, Math.max(buildings.length - 1, 0));
-  currentAppTab = snapshot.currentAppTab || "rental";
+  currentAppTab = snapshot.currentAppTab || "dashboard";
   localSnapshotSyncedAt = snapshot.syncedAt || new Date().toISOString();
   localStorage.setItem(syncMetaKey, localSnapshotSyncedAt);
   persistLocalState(false);
@@ -485,6 +486,19 @@ function setAppAccess(isAllowed) {
   appShell.classList.toggle("hidden", !isAllowed);
 }
 
+async function withAuthTimeout(promise, timeoutMessage) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(timeoutMessage)), 9000);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 function setAuthUiLoggedOut() {
   authForm.classList.remove("hidden");
   authStatusBar.classList.add("hidden");
@@ -556,6 +570,8 @@ async function applyAuthenticatedState(session) {
     appliedRemoteUpdatedAt = "";
     latestRemoteUpdatedAt = "";
     setRemoteUpdateNotice(false);
+    currentAppTab = "dashboard";
+    localStorage.setItem(appTabStorageKey, currentAppTab);
 
     bootApp();
     setAppAccess(true);
@@ -590,10 +606,13 @@ async function handleLogin() {
   loginButton.disabled = true;
 
   try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password
-    });
+    const { data, error } = await withAuthTimeout(
+      supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      }),
+      "로그인이 지연되고 있습니다. 잠시 후 다시 시도해 주세요."
+    );
 
     if (error) {
       throw error;
@@ -626,7 +645,10 @@ async function handleLogout() {
   setAppAccess(false);
   showAuthMessage("로그아웃 중입니다...");
 
-  const { error } = await supabaseClient.auth.signOut();
+  const { error } = await withAuthTimeout(
+    supabaseClient.auth.signOut(),
+    "로그아웃이 지연되고 있습니다. 앱을 다시 열어 확인해 주세요."
+  );
   if (error) {
     showAuthMessage(`로그아웃 중 오류가 발생했습니다: ${error.message || error}`);
     return;
@@ -659,8 +681,10 @@ async function initializeSupabaseAuth() {
 
   await applyAuthenticatedState(data.session);
 
-  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-    await applyAuthenticatedState(session);
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    window.setTimeout(() => {
+      applyAuthenticatedState(session);
+    }, 0);
   });
 }
 
@@ -874,6 +898,18 @@ function setEducationSubsectionCollapsed(sectionName, collapsed) {
   }
 }
 
+function setChildManagerCollapsed(collapsed) {
+  childManagerCollapsed = collapsed;
+  const body = educationChildManager.querySelector(".education-child-manager-body");
+  const button = educationChildManager.querySelector(".education-child-toggle");
+  if (body) {
+    body.classList.toggle("hidden", collapsed);
+  }
+  if (button) {
+    button.innerText = collapsed ? "열기" : "접기";
+  }
+}
+
 function populateChildSelect(selectElement, selectedValue) {
   if (!selectElement) {
     return;
@@ -896,10 +932,14 @@ function populateChildSelects() {
 function renderChildManager() {
   educationChildManager.innerHTML = `
     <div class="education-child-manager-head">
-      <div class="education-child-manager-title">자녀 이름 관리</div>
-      <button type="button" class="education-child-add" id="addChildProfileButton">자녀 추가</button>
+      <div class="education-child-manager-title">자녀관리</div>
+      <div class="education-child-head-actions">
+        <button type="button" class="collapse-toggle education-child-toggle">${childManagerCollapsed ? "열기" : "접기"}</button>
+        <button type="button" class="education-child-add" id="addChildProfileButton">자녀 추가</button>
+      </div>
     </div>
-    <div class="education-child-list">
+    <div class="education-child-manager-body${childManagerCollapsed ? " hidden" : ""}">
+      <div class="education-child-list">
       ${childProfiles.map((profile, index) => `
         <div class="education-child-row">
           <div class="education-child-order">자녀 ${index + 1}</div>
@@ -913,6 +953,7 @@ function renderChildManager() {
           <button type="button" class="education-child-remove" data-remove-child-id="${profile.id}" ${childProfiles.length === 1 ? "disabled" : ""}>삭제</button>
         </div>
       `).join("")}
+      </div>
     </div>
   `;
 }
@@ -1285,19 +1326,19 @@ function renderEducationColumn(childLabel, entries) {
 
 function renderEducationYearlyTable() {
   const months = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
-  const rows = childProfiles.map((profile) => {
-    const monthCells = months.map((month) => {
+  const rows = months.map((month) => {
+    const childCells = childProfiles.map((profile) => {
       const total = educationEntries
         .filter((entry) => entry.month === `2026-${month}` && entry.child === profile.id)
         .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
       return `<td>${formatCurrency(total)}</td>`;
     }).join("");
-    return `<tr><td>${profile.name}</td>${monthCells}</tr>`;
+    return `<tr><td>${Number(month)}월</td>${childCells}</tr>`;
   }).join("");
 
-  const totalCells = months.map((month) => {
+  const totalCells = childProfiles.map((profile) => {
     const total = educationEntries
-      .filter((entry) => entry.month === `2026-${month}`)
+      .filter((entry) => entry.child === profile.id && entry.month.startsWith("2026-"))
       .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
     return `<td>${formatCurrency(total)}</td>`;
   }).join("");
@@ -1307,8 +1348,8 @@ function renderEducationYearlyTable() {
       <table class="education-yearly-table">
         <thead>
           <tr>
-            <th>구분</th>
-            ${months.map((month) => `<th>${Number(month)}월</th>`).join("")}
+            <th>월</th>
+            ${childProfiles.map((profile) => `<th>${profile.name}</th>`).join("")}
           </tr>
         </thead>
         <tbody>
@@ -2401,7 +2442,7 @@ function importBackupData(file) {
       academies = Array.isArray(parsed.academies) ? parsed.academies : [];
       educationEntries = Array.isArray(parsed.educationEntries) ? parsed.educationEntries : [];
       normalizeEducationData();
-      currentAppTab = parsed.currentAppTab || "rental";
+      currentAppTab = parsed.currentAppTab || "dashboard";
       persistLocalState();
       load();
       setAppTab(currentAppTab);
@@ -2635,6 +2676,12 @@ academyQuickButtons.addEventListener("click", (event) => {
 });
 
 educationChildManager.addEventListener("click", (event) => {
+  const toggleButton = event.target.closest(".education-child-toggle");
+  if (toggleButton) {
+    setChildManagerCollapsed(!childManagerCollapsed);
+    return;
+  }
+
   const addButton = event.target.closest("#addChildProfileButton");
   if (addButton) {
     addChildProfile();

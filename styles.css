@@ -1051,6 +1051,12 @@ input[type="checkbox"] {
   gap: 10px;
 }
 
+.education-child-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .education-child-manager-title {
   font-size: 14px;
   font-weight: 700;
@@ -1489,7 +1495,6 @@ input[type="checkbox"] {
 .education-yearly-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
   font-size: 12px;
 }
 
