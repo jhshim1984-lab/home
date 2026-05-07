@@ -2374,6 +2374,10 @@ function renderRentRecords() {
   rentRecordsContainer.innerHTML = `
     <div class="rent-records-table-wrap">
       <table class="rent-records-table">
+        <colgroup>
+          <col style="width:44px;">
+          ${monthHeaders.map(() => '<col style="width:26px;">').join("")}
+        </colgroup>
         <thead>
           <tr>
             <th class="rent-room-col">호실</th>
