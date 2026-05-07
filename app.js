@@ -2847,21 +2847,6 @@ document.querySelectorAll(".app-tab").forEach((button) => {
   });
 });
 
-backupDataButton.addEventListener("click", () => {
-  backupData();
-});
-
-importDataButton.addEventListener("click", () => {
-  importDataInput.click();
-});
-
-importDataInput.addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
-  if (file) {
-    importBackupData(file);
-  }
-});
-
 educationPrevMonth.addEventListener("click", () => {
   shiftEducationMonth(-1);
   renderEducationTab();
