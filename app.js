@@ -2480,6 +2480,14 @@ function renderRentRecords() {
         return;
       }
 
+      if (!baseRent) {
+        return;
+      }
+
+      if (!window.confirm(`${roomLabel} ${Number(month)}월에 ${baseRent}을 입력할까요?`)) {
+        return;
+      }
+
       amountInput.value = baseRent;
       upsertRentRecordAmount(roomLabel, month, baseRent);
     });
