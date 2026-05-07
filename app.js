@@ -28,6 +28,7 @@ let educationMonth = `${initialEducationDate.getFullYear()}-${String(initialEduc
 let educationCategoryFilter = "all";
 let selectedAcademyId = "";
 let childManagerCollapsed = true;
+let quickAcademyDetailsCollapsed = true;
 let academySectionCollapsed = true;
 let directEducationSectionCollapsed = true;
 const initialDashboardDate = new Date();
@@ -910,6 +911,28 @@ function formatShortDateInput(value) {
   return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
 }
 
+function getTodayShortDate() {
+  const today = new Date();
+  return formatShortDateInput(
+    `${String(today.getFullYear()).slice(2)}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`
+  );
+}
+
+function shiftShortDate(value, diffDays) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length !== 6) {
+    return getTodayShortDate();
+  }
+
+  const year = 2000 + Number(digits.slice(0, 2));
+  const month = Number(digits.slice(2, 4));
+  const day = Number(digits.slice(4, 6));
+  const base = new Date(year, month - 1, day + diffDays);
+  return formatShortDateInput(
+    `${String(base.getFullYear()).slice(2)}${String(base.getMonth() + 1).padStart(2, "0")}${String(base.getDate()).padStart(2, "0")}`
+  );
+}
+
 function formatPhoneNumber(value) {
   const digits = String(value || "").replace(/\D/g, "").slice(0, 11);
   if (digits.length < 4) {
@@ -1020,6 +1043,12 @@ function setEducationSubsectionCollapsed(sectionName, collapsed) {
     directEducationSectionBody.classList.toggle("hidden", collapsed);
     toggleDirectEducationSectionButton.innerText = collapsed ? "입력 열기" : "입력 접기";
   }
+}
+
+function setQuickAcademyDetailsCollapsed(collapsed) {
+  quickAcademyDetailsCollapsed = collapsed;
+  academyQuickDetails.classList.toggle("hidden", collapsed);
+  toggleQuickAcademyDetailsButton.innerText = collapsed ? "세부 열기" : "세부 접기";
 }
 
 function setChildManagerCollapsed(collapsed) {
@@ -1274,6 +1303,7 @@ function renderEducationTab() {
     <div class="summary-card">${item.name} 합계<span>${formatCurrency(item.total)}</span></div>
   `).join("");
   educationGrandTotal.innerText = formatCurrency(grandTotal);
+  setQuickAcademyDetailsCollapsed(quickAcademyDetailsCollapsed);
   setEducationSubsectionCollapsed("academy", academySectionCollapsed);
   setEducationSubsectionCollapsed("direct", directEducationSectionCollapsed);
   renderAcademyList();
@@ -1332,7 +1362,7 @@ function populateAcademyQuickSelect() {
         return "";
       }
 
-      return `
+        return `
         <div class="academy-quick-group">
           <div class="academy-group-title">${profile.name}</div>
           <div class="academy-quick-row">
@@ -1347,7 +1377,6 @@ function populateAcademyQuickSelect() {
                 </button>
               `).join("")}
             </div>
-            <button type="button" class="academy-quick-add-button" data-child="${profile.id}">이번 달에 추가</button>
           </div>
         </div>
       `;
@@ -1366,6 +1395,9 @@ function fillQuickAcademyForm() {
   academyQuickCategory.value = academy?.category || "";
   academyQuickTitle.value = academy?.name || "";
   academyQuickAmount.value = academy ? formatInputNumber(academy.amount) : "";
+  if (!academyQuickDate.value) {
+    academyQuickDate.value = getTodayShortDate();
+  }
   setMemoFieldValue(academyQuickMemo, "");
 }
 
@@ -2844,10 +2876,28 @@ educationTodayButton.addEventListener("click", () => {
 });
 
 academyQuickTodayButton.addEventListener("click", () => {
-  const today = new Date();
-  academyQuickDate.value = formatShortDateInput(
-    `${String(today.getFullYear()).slice(2)}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`
-  );
+  academyQuickDate.value = getTodayShortDate();
+});
+
+academyQuickPrevDayButton.addEventListener("click", () => {
+  academyQuickDate.value = shiftShortDate(academyQuickDate.value || getTodayShortDate(), -1);
+});
+
+academyQuickNextDayButton.addEventListener("click", () => {
+  academyQuickDate.value = shiftShortDate(academyQuickDate.value || getTodayShortDate(), 1);
+});
+
+academyQuickAddButton.addEventListener("click", () => {
+  const selectedAcademy = academies.find((academy) => academy.id === selectedAcademyId);
+  if (!selectedAcademy) {
+    window.alert("학원을 먼저 선택해 주세요.");
+    return;
+  }
+  addQuickAcademyEntry();
+});
+
+toggleQuickAcademyDetailsButton.addEventListener("click", () => {
+  setQuickAcademyDetailsCollapsed(!quickAcademyDetailsCollapsed);
 });
 
 addEducationEntryButton.addEventListener("click", () => {
@@ -2878,16 +2928,6 @@ academyQuickButtons.addEventListener("click", (event) => {
     selectedAcademyId = button.dataset.academyId;
     populateAcademyQuickSelect();
     return;
-  }
-
-  const addButton = event.target.closest(".academy-quick-add-button");
-  if (addButton) {
-    const selectedAcademy = academies.find((academy) => academy.id === selectedAcademyId);
-    if (!selectedAcademy || selectedAcademy.child !== addButton.dataset.child) {
-      window.alert(`${getChildName(addButton.dataset.child)} 학원을 먼저 선택해 주세요.`);
-      return;
-    }
-    addQuickAcademyEntry();
   }
 });
 

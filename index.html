@@ -307,9 +307,19 @@
         <div class="education-subsection">
           <div class="section-heading">
             <h3>등록 학원으로 빠른 입력</h3>
+            <button type="button" id="toggleQuickAcademyDetailsButton" class="collapse-toggle">세부 열기</button>
           </div>
           <div id="academyQuickButtons" class="academy-quick-buttons"></div>
-          <div class="education-entry-grid">
+          <div class="academy-quick-actions">
+            <div class="academy-quick-date-inline">
+              <button type="button" id="academyQuickPrevDayButton" class="date-shift-button">&lt;</button>
+              <input id="academyQuickDate" placeholder="YY-MM-DD" inputmode="numeric" maxlength="8">
+              <button type="button" id="academyQuickNextDayButton" class="date-shift-button">&gt;</button>
+            </div>
+            <button type="button" id="academyQuickTodayButton" class="secondary-action">오늘</button>
+            <button type="button" id="academyQuickAddButton">이번 달에 추가</button>
+          </div>
+          <div id="academyQuickDetails" class="education-entry-grid hidden">
             <div class="education-entry-field">
               <label for="academyQuickChild">자녀</label>
               <input id="academyQuickChild" readonly>
@@ -325,13 +335,6 @@
             <div class="education-entry-field">
               <label for="academyQuickAmount">금액</label>
               <input id="academyQuickAmount" class="num">
-            </div>
-            <div class="education-entry-field">
-              <label for="academyQuickDate">날짜</label>
-              <div class="education-date-wrap">
-                <input id="academyQuickDate" placeholder="YY-MM-DD" inputmode="numeric" maxlength="8">
-                <button type="button" id="academyQuickTodayButton">오늘</button>
-              </div>
             </div>
             <div class="education-entry-field education-entry-field-wide">
               <label for="academyQuickMemo">메모</label>
