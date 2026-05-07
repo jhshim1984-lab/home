@@ -2868,16 +2868,6 @@ dashboardNextMonth.addEventListener("click", () => {
   renderDashboardTab();
 });
 
-document.querySelectorAll("[data-category-filter]").forEach((button) => {
-  button.addEventListener("click", () => {
-    educationCategoryFilter = button.dataset.categoryFilter;
-    document.querySelectorAll("[data-category-filter]").forEach((item) => {
-      item.classList.toggle("active", item.dataset.categoryFilter === educationCategoryFilter);
-    });
-    renderEducationTab();
-  });
-});
-
 toggleAcademySectionButton.addEventListener("click", () => {
   setEducationSubsectionCollapsed("academy", !academySectionCollapsed);
 });
