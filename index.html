@@ -220,15 +220,16 @@
 
     <div class="education-toolbar">
       <button type="button" id="educationPrevMonth" class="month-nav">&lt;</button>
-      <div id="educationMonthLabel" class="education-month-label">2026년 4월</div>
+      <div id="educationMonthLabel" class="education-month-label">2026년 5월</div>
       <button type="button" id="educationNextMonth" class="month-nav">&gt;</button>
     </div>
 
     <div class="education-summary">
       <div class="summary-card">이번 달 총 교육비<span id="educationTotalAmount">0원</span></div>
-      <div class="summary-card">자녀1<span id="educationChild1Amount">0원</span></div>
-      <div class="summary-card">자녀2<span id="educationChild2Amount">0원</span></div>
+      <div id="educationChildSummaryCards" class="education-dynamic-summary"></div>
     </div>
+
+    <div id="educationChildManager" class="education-child-manager"></div>
 
     <div class="education-filters">
       <div class="filter-group" id="educationCategoryFilters">
@@ -256,10 +257,7 @@
           <div class="education-entry-grid">
             <div class="education-entry-field">
               <label for="academyChild">자녀</label>
-              <select id="academyChild">
-                <option value="자녀1">자녀1</option>
-                <option value="자녀2">자녀2</option>
-              </select>
+              <select id="academyChild"></select>
             </div>
             <div class="education-entry-field">
               <label for="academyCategory">분류</label>
@@ -350,10 +348,7 @@
           <div class="education-entry-grid">
             <div class="education-entry-field">
               <label for="educationChild">자녀</label>
-              <select id="educationChild">
-                <option value="자녀1">자녀1</option>
-                <option value="자녀2">자녀2</option>
-              </select>
+              <select id="educationChild"></select>
             </div>
             <div class="education-entry-field">
               <label for="educationCategory">항목</label>
@@ -399,8 +394,7 @@
     </div>
 
     <div class="education-month-totals">
-      <div class="summary-card">자녀1 합계<span id="educationChild1Total">0원</span></div>
-      <div class="summary-card">자녀2 합계<span id="educationChild2Total">0원</span></div>
+      <div id="educationMonthTotalCards" class="education-dynamic-summary"></div>
       <div class="summary-card">전체 합계<span id="educationGrandTotal">0원</span></div>
     </div>
 
@@ -449,8 +443,7 @@
     <div class="dashboard-overview">
       <div class="summary-card">이번 달 월세 수입<span id="dashboardRentIncome">0원</span></div>
       <div class="summary-card">이번 달 대출이자<span id="dashboardLoanInterest">0원</span></div>
-      <div class="summary-card">자녀1 교육비<span id="dashboardChild1Education">0원</span></div>
-      <div class="summary-card">자녀2 교육비<span id="dashboardChild2Education">0원</span></div>
+      <div id="dashboardEducationOverview" class="education-dynamic-summary"></div>
     </div>
 
     <div class="dashboard-split">

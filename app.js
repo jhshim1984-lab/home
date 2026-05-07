@@ -1,6 +1,7 @@
 const storageKey = "b";
 const educationStorageKey = "educationExpenses";
 const academyStorageKey = "educationAcademies";
+const childProfileStorageKey = "educationChildren";
 const appTabStorageKey = "appTab";
 const syncMetaKey = "appSyncMeta";
 const remoteAppliedMetaKey = "remoteAppliedMeta";
@@ -19,12 +20,14 @@ let current = 0;
 let buildings = JSON.parse(localStorage.getItem(storageKey) || "null") || [newBuilding()];
 let educationEntries = JSON.parse(localStorage.getItem(educationStorageKey) || "[]");
 let academies = JSON.parse(localStorage.getItem(academyStorageKey) || "[]");
+let childProfiles = normalizeChildProfiles(JSON.parse(localStorage.getItem(childProfileStorageKey) || "null"));
 let currentAppTab = localStorage.getItem(appTabStorageKey) || "rental";
-let educationMonth = "2026-04";
+const initialEducationDate = new Date();
+let educationMonth = `${initialEducationDate.getFullYear()}-${String(initialEducationDate.getMonth() + 1).padStart(2, "0")}`;
 let educationCategoryFilter = "all";
 let selectedAcademyId = "";
-let academySectionCollapsed = false;
-let directEducationSectionCollapsed = false;
+let academySectionCollapsed = true;
+let directEducationSectionCollapsed = true;
 const initialDashboardDate = new Date();
 let dashboardMonth = `${initialDashboardDate.getFullYear()}-${String(initialDashboardDate.getMonth() + 1).padStart(2, "0")}`;
 let currentSession = null;
@@ -55,18 +58,88 @@ function newBuilding() {
     floors: [2, 2, 2, 0, 0],
     floorExcludes: ["", "", "", "", ""],
     floorCollapsed: [false, false, false, false, false],
-    propertyDetailsCollapsed: false,
-    floorSettingsCollapsed: false,
+    propertyDetailsCollapsed: true,
+    floorSettingsCollapsed: true,
     rentRecords: {},
     rentExpenses: {},
     rooms: []
   };
 }
 
+function defaultChildProfiles() {
+  return [
+    { id: "child1", name: "자녀1" },
+    { id: "child2", name: "자녀2" }
+  ];
+}
+
+function normalizeChildProfiles(profiles) {
+  const base = Array.isArray(profiles) && profiles.length > 0 ? profiles : defaultChildProfiles();
+  const normalized = base
+    .map((profile, index) => {
+      const legacyId = index === 0 ? "child1" : index === 1 ? "child2" : "";
+      return {
+        id: String(profile?.id || legacyId || `child_${Date.now()}_${index}`).trim(),
+        name: String(profile?.name || `자녀${index + 1}`).trim() || `자녀${index + 1}`
+      };
+    })
+    .filter((profile, index, all) => profile.id && all.findIndex((item) => item.id === profile.id) === index);
+
+  return normalized.length > 0 ? normalized : defaultChildProfiles();
+}
+
+function normalizeChildRef(value) {
+  if (value === "자녀1") return "child1";
+  if (value === "자녀2") return "child2";
+  return String(value || "").trim();
+}
+
+function getChildProfile(childId) {
+  const normalizedId = normalizeChildRef(childId);
+  return childProfiles.find((profile) => profile.id === normalizedId) || null;
+}
+
+function getChildName(childId) {
+  return getChildProfile(childId)?.name || "자녀";
+}
+
+function ensureChildProfile(childId) {
+  const normalizedId = normalizeChildRef(childId);
+  if (!normalizedId) {
+    return childProfiles[0]?.id || "child1";
+  }
+
+  if (!childProfiles.some((profile) => profile.id === normalizedId)) {
+    childProfiles.push({
+      id: normalizedId,
+      name: normalizedId === "child1" ? "자녀1" : normalizedId === "child2" ? "자녀2" : `자녀${childProfiles.length + 1}`
+    });
+  }
+
+  return normalizedId;
+}
+
+function normalizeEducationData() {
+  childProfiles = normalizeChildProfiles(childProfiles);
+
+  academies = academies.map((academy) => ({
+    ...academy,
+    child: ensureChildProfile(academy.child)
+  }));
+
+  educationEntries = educationEntries.map((entry) => ({
+    ...entry,
+    child: ensureChildProfile(entry.child)
+  }));
+}
+
+normalizeEducationData();
+
 function persistLocalState(markDirty = true) {
   localStorage.setItem(storageKey, JSON.stringify(buildings));
   localStorage.setItem(academyStorageKey, JSON.stringify(academies));
   localStorage.setItem(educationStorageKey, JSON.stringify(educationEntries));
+  localStorage.setItem(childProfileStorageKey, JSON.stringify(childProfiles));
   localStorage.setItem(appTabStorageKey, currentAppTab);
   if (markDirty) {
     localChangesPending = true;
@@ -83,6 +156,7 @@ function createAppSnapshot() {
     current,
     currentAppTab,
     buildings,
+    childProfiles,
     academies,
     educationEntries
   };
@@ -104,8 +178,10 @@ function applyAppSnapshot(snapshot) {
   buildings = Array.isArray(snapshot.buildings) && snapshot.buildings.length > 0
     ? snapshot.buildings
     : [newBuilding()];
+  childProfiles = normalizeChildProfiles(snapshot.childProfiles);
   academies = Array.isArray(snapshot.academies) ? snapshot.academies : [];
   educationEntries = Array.isArray(snapshot.educationEntries) ? snapshot.educationEntries : [];
+  normalizeEducationData();
   current = Math.min(Number(snapshot.current) || 0, Math.max(buildings.length - 1, 0));
   currentAppTab = snapshot.currentAppTab || "rental";
   localSnapshotSyncedAt = snapshot.syncedAt || new Date().toISOString();
@@ -798,6 +874,102 @@ function setEducationSubsectionCollapsed(sectionName, collapsed) {
   }
 }
 
+function populateChildSelect(selectElement, selectedValue) {
+  if (!selectElement) {
+    return;
+  }
+
+  const fallbackValue = childProfiles[0]?.id || "child1";
+  const nextValue = childProfiles.some((profile) => profile.id === selectedValue) ? selectedValue : fallbackValue;
+
+  selectElement.innerHTML = childProfiles.map((profile) => `
+    <option value="${profile.id}">${profile.name}</option>
+  `).join("");
+  selectElement.value = nextValue;
+}
+
+function populateChildSelects() {
+  populateChildSelect(academyChild, academyChild.value);
+  populateChildSelect(educationChild, educationChild.value);
+}
+
+function renderChildManager() {
+  educationChildManager.innerHTML = `
+    <div class="education-child-manager-head">
+      <div class="education-child-manager-title">자녀 이름 관리</div>
+      <button type="button" class="education-child-add" id="addChildProfileButton">자녀 추가</button>
+    </div>
+    <div class="education-child-list">
+      ${childProfiles.map((profile, index) => `
+        <div class="education-child-row">
+          <div class="education-child-order">자녀 ${index + 1}</div>
+          <input
+            type="text"
+            value="${profile.name.replace(/"/g, "&quot;")}"
+            data-child-profile-id="${profile.id}"
+            class="child-profile-name-input"
+            placeholder="자녀 이름"
+          >
+          <button type="button" class="education-child-remove" data-remove-child-id="${profile.id}" ${childProfiles.length === 1 ? "disabled" : ""}>삭제</button>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function updateChildProfileName(childId, nextName) {
+  childProfiles = childProfiles.map((profile) => (
+    profile.id === childId
+      ? { ...profile, name: nextName.trim() || profile.name }
+      : profile
+  ));
+  persistLocalState();
+  renderEducationTab();
+  renderDashboardTab();
+}
+
+function addChildProfile() {
+  const nextIndex = childProfiles.length + 1;
+  childProfiles.push({
+    id: `child_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`,
+    name: `자녀${nextIndex}`
+  });
+  persistLocalState();
+  renderEducationTab();
+  renderDashboardTab();
+}
+
+function removeChildProfile(childId) {
+  const target = getChildProfile(childId);
+  if (!target) {
+    return;
+  }
+
+  const relatedAcademies = academies.filter((academy) => academy.child === childId).length;
+  const relatedEntries = educationEntries.filter((entry) => entry.child === childId).length;
+  const relatedCount = relatedAcademies + relatedEntries;
+  const warning = relatedCount > 0
+    ? `\n이 자녀에 연결된 학원/교육비 기록 ${relatedCount}건도 함께 삭제됩니다.`
+    : "";
+
+  if (!window.confirm(`${target.name} 정보를 삭제할까요?${warning}`)) {
+    return;
+  }
+
+  childProfiles = childProfiles.filter((profile) => profile.id !== childId);
+  academies = academies.filter((academy) => academy.child !== childId);
+  educationEntries = educationEntries.filter((entry) => entry.child !== childId);
+  if (selectedAcademyId) {
+    const selectedAcademy = academies.find((academy) => academy.id === selectedAcademyId);
+    if (!selectedAcademy) {
+      selectedAcademyId = "";
+    }
+  }
+  persistLocalState();
+  renderEducationTab();
+  renderDashboardTab();
+}
+
 function getFilteredEducationEntries() {
   return educationEntries.filter((entry) => {
     if (entry.month !== educationMonth) {
@@ -834,13 +1006,13 @@ function renderDashboardTab() {
   const { year, month, label } = getCurrentDashboardMonth();
   const educationMonthKey = `${year}-${month}`;
   const monthEntries = educationEntries.filter((entry) => entry.month === educationMonthKey);
-  const educationChild1 = monthEntries
-    .filter((entry) => entry.child === "자녀1")
-    .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
-  const educationChild2 = monthEntries
-    .filter((entry) => entry.child === "자녀2")
-    .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
-  const educationTotal = educationChild1 + educationChild2;
+  const childTotals = childProfiles.map((profile) => ({
+    ...profile,
+    total: monthEntries
+      .filter((entry) => entry.child === profile.id)
+      .reduce((sum, entry) => sum + parseNumber(entry.amount), 0)
+  }));
+  const educationTotal = childTotals.reduce((sum, item) => sum + item.total, 0);
 
   const buildingSummaries = buildings.map((building, index) => {
     const roomRecords = building.rentRecords?.[year] || {};
@@ -871,8 +1043,9 @@ function renderDashboardTab() {
   dashboardEducationTotal.innerText = formatCurrency(educationTotal);
   dashboardRentIncome.innerText = formatCurrency(rentalIncome);
   dashboardLoanInterest.innerText = formatCurrency(loanInterestTotal);
-  dashboardChild1Education.innerText = formatCurrency(educationChild1);
-  dashboardChild2Education.innerText = formatCurrency(educationChild2);
+  dashboardEducationOverview.innerHTML = childTotals.slice(0, 3).map((item) => `
+    <div class="summary-card">${item.name} 교육비<span>${formatCurrency(item.total)}</span></div>
+  `).join("");
 
   dashboardBuildingList.innerHTML = buildingSummaries.length === 0
     ? '<div class="education-empty">등록된 건물이 없습니다.</div>'
@@ -890,31 +1063,24 @@ function renderDashboardTab() {
       `).join("");
 
   dashboardEducationList.innerHTML = `
-    <div class="dashboard-education-item">
-      <div class="dashboard-education-top">
-        <div class="dashboard-education-name">자녀1</div>
-        <div class="dashboard-education-amount">${formatCurrency(educationChild1)}</div>
+    ${childTotals.map((item) => `
+      <div class="dashboard-education-item">
+        <div class="dashboard-education-top">
+          <div class="dashboard-education-name">${item.name}</div>
+          <div class="dashboard-education-amount">${formatCurrency(item.total)}</div>
+        </div>
+        <div class="dashboard-education-meta">
+          <span>${label} 교육비 합계</span>
+        </div>
       </div>
-      <div class="dashboard-education-meta">
-        <span>${label} 교육비 합계</span>
-      </div>
-    </div>
-    <div class="dashboard-education-item">
-      <div class="dashboard-education-top">
-        <div class="dashboard-education-name">자녀2</div>
-        <div class="dashboard-education-amount">${formatCurrency(educationChild2)}</div>
-      </div>
-      <div class="dashboard-education-meta">
-        <span>${label} 교육비 합계</span>
-      </div>
-    </div>
+    `).join("")}
     <div class="dashboard-education-item">
       <div class="dashboard-education-top">
         <div class="dashboard-education-name">전체 교육비</div>
         <div class="dashboard-education-amount">${formatCurrency(educationTotal)}</div>
       </div>
       <div class="dashboard-education-meta">
-        <span>자녀1 + 자녀2</span>
+        <span>등록된 자녀 전체</span>
       </div>
     </div>
   `;
@@ -922,24 +1088,26 @@ function renderDashboardTab() {
 
 function renderEducationTab() {
   educationMonthLabel.innerText = formatEducationMonthLabel(educationMonth);
+  populateChildSelects();
+  renderChildManager();
   const monthEntries = getEducationMonthEntries();
   const filteredEntries = getFilteredEducationEntries().sort((a, b) => a.date.localeCompare(b.date));
-  const child1Entries = filteredEntries.filter((entry) => entry.child === "자녀1");
-  const child2Entries = filteredEntries.filter((entry) => entry.child === "자녀2");
-
-  const child1Total = monthEntries
-    .filter((entry) => entry.child === "자녀1")
-    .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
-  const child2Total = monthEntries
-    .filter((entry) => entry.child === "자녀2")
-    .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
-  const grandTotal = child1Total + child2Total;
+  const childSummaries = childProfiles.map((profile) => ({
+    ...profile,
+    entries: filteredEntries.filter((entry) => entry.child === profile.id),
+    total: monthEntries
+      .filter((entry) => entry.child === profile.id)
+      .reduce((sum, entry) => sum + parseNumber(entry.amount), 0)
+  }));
+  const grandTotal = childSummaries.reduce((sum, item) => sum + item.total, 0);
 
   educationTotalAmount.innerText = formatCurrency(grandTotal);
-  educationChild1Amount.innerText = formatCurrency(child1Total);
-  educationChild2Amount.innerText = formatCurrency(child2Total);
-  educationChild1Total.innerText = formatCurrency(child1Total);
-  educationChild2Total.innerText = formatCurrency(child2Total);
+  educationChildSummaryCards.innerHTML = childSummaries.map((item) => `
+    <div class="summary-card">${item.name}<span>${formatCurrency(item.total)}</span></div>
+  `).join("");
+  educationMonthTotalCards.innerHTML = childSummaries.map((item) => `
+    <div class="summary-card">${item.name} 합계<span>${formatCurrency(item.total)}</span></div>
+  `).join("");
   educationGrandTotal.innerText = formatCurrency(grandTotal);
   setEducationSubsectionCollapsed("academy", academySectionCollapsed);
   setEducationSubsectionCollapsed("direct", directEducationSectionCollapsed);
@@ -948,8 +1116,7 @@ function renderEducationTab() {
 
   educationColumns.innerHTML = `
     <div class="education-columns">
-      ${renderEducationColumn("자녀1", child1Entries)}
-      ${renderEducationColumn("자녀2", child2Entries)}
+      ${childSummaries.map((item) => renderEducationColumn(item.name, item.entries)).join("")}
     </div>
   `;
   renderEducationYearlyTable();
@@ -961,18 +1128,18 @@ function renderAcademyList() {
     return;
   }
 
-  const groups = ["자녀1", "자녀2"].map((child) => {
-    const childAcademies = academies.filter((academy) => academy.child === child);
+  const groups = childProfiles.map((profile, index) => {
+    const childAcademies = academies.filter((academy) => academy.child === profile.id);
     if (childAcademies.length === 0) {
       return "";
     }
 
     return `
       <div class="academy-group">
-        <div class="academy-group-title">${child}</div>
+        <div class="academy-group-title">${profile.name}</div>
         <div class="academy-group-items">
           ${childAcademies.map((academy) => `
-            <div class="academy-item ${academy.child === "자녀1" ? "child1" : "child2"}">
+            <div class="academy-item ${index % 2 === 0 ? "child1" : "child2"}">
               <div class="academy-item-main">
                 <div class="academy-item-title">${academy.name}</div>
                 <div class="academy-item-meta">${academy.category} · ${formatCurrency(parseNumber(academy.amount))} · 매월 ${academy.dueDay || "-"}일</div>
@@ -994,28 +1161,28 @@ function populateAcademyQuickSelect() {
   if (academies.length === 0) {
     academyQuickButtons.innerHTML = '<div class="education-empty">선택할 학원이 없습니다.</div>';
   } else {
-    academyQuickButtons.innerHTML = ["자녀1", "자녀2"].map((child) => {
-      const childAcademies = academies.filter((academy) => academy.child === child);
+    academyQuickButtons.innerHTML = childProfiles.map((profile, index) => {
+      const childAcademies = academies.filter((academy) => academy.child === profile.id);
       if (childAcademies.length === 0) {
         return "";
       }
 
       return `
         <div class="academy-quick-group">
-          <div class="academy-group-title">${child}</div>
+          <div class="academy-group-title">${profile.name}</div>
           <div class="academy-quick-row">
             <div class="academy-quick-group-items">
               ${childAcademies.map((academy) => `
                 <button
                   type="button"
-                  class="academy-quick-button ${academy.child === "자녀1" ? "child1" : "child2"}${academy.id === selectedAcademyId ? " active" : ""}"
+                  class="academy-quick-button ${index % 2 === 0 ? "child1" : "child2"}${academy.id === selectedAcademyId ? " active" : ""}"
                   data-academy-id="${academy.id}"
                 >
                   ${academy.name}
                 </button>
               `).join("")}
             </div>
-            <button type="button" class="academy-quick-add-button" data-child="${child}">이번 달에 추가</button>
+            <button type="button" class="academy-quick-add-button" data-child="${profile.id}">이번 달에 추가</button>
           </div>
         </div>
       `;
@@ -1030,7 +1197,7 @@ function populateAcademyQuickSelect() {
 
 function fillQuickAcademyForm() {
   const academy = academies.find((item) => item.id === selectedAcademyId);
-  academyQuickChild.value = academy?.child || "";
+  academyQuickChild.value = academy ? getChildName(academy.child) : "";
   academyQuickCategory.value = academy?.category || "";
   academyQuickTitle.value = academy?.name || "";
   academyQuickAmount.value = academy ? formatInputNumber(academy.amount) : "";
@@ -1038,7 +1205,7 @@ function fillQuickAcademyForm() {
 }
 
 function resetAcademyForm() {
-  academyChild.value = "자녀1";
+  academyChild.value = childProfiles[0]?.id || "";
   academyCategory.value = "학원비";
   academyName.value = "";
   academyAmount.value = "";
@@ -1060,10 +1227,10 @@ function addAcademy() {
     child: academyChild.value,
     category: academyCategory.value,
     name,
-      amount,
-      dueDay: academyDueDay.value.trim(),
-      memo: buildMemoValue(academyMemo)
-    });
+    amount,
+    dueDay: academyDueDay.value.trim(),
+    memo: buildMemoValue(academyMemo)
+  });
   saveAcademies();
   resetAcademyForm();
   renderEducationTab();
@@ -1075,7 +1242,7 @@ function deleteAcademy(academyId) {
     return;
   }
 
-  if (!window.confirm(`${academy.child}의 ${academy.name} 학원 정보를 삭제할까요?`)) {
+  if (!window.confirm(`${getChildName(academy.child)}의 ${academy.name} 학원 정보를 삭제할까요?`)) {
     return;
   }
 
@@ -1118,14 +1285,14 @@ function renderEducationColumn(childLabel, entries) {
 
 function renderEducationYearlyTable() {
   const months = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
-  const rows = ["자녀1", "자녀2"].map((child) => {
+  const rows = childProfiles.map((profile) => {
     const monthCells = months.map((month) => {
       const total = educationEntries
-        .filter((entry) => entry.month === `2026-${month}` && entry.child === child)
+        .filter((entry) => entry.month === `2026-${month}` && entry.child === profile.id)
         .reduce((sum, entry) => sum + parseNumber(entry.amount), 0);
       return `<td>${formatCurrency(total)}</td>`;
     }).join("");
-    return `<tr><td>${child}</td>${monthCells}</tr>`;
+    return `<tr><td>${profile.name}</td>${monthCells}</tr>`;
   }).join("");
 
   const totalCells = months.map((month) => {
@@ -1162,7 +1329,7 @@ function deleteEducationEntry(entryId) {
     return;
   }
 
-  if (!window.confirm(`${target.child}의 ${target.title || target.category} 기록을 삭제할까요?`)) {
+  if (!window.confirm(`${getChildName(target.child)}의 ${target.title || target.category} 기록을 삭제할까요?`)) {
     return;
   }
 
@@ -1172,7 +1339,7 @@ function deleteEducationEntry(entryId) {
 }
 
 function resetEducationEntryForm() {
-  educationChild.value = "자녀1";
+  educationChild.value = childProfiles[0]?.id || "";
   educationCategory.value = "교재비";
   educationTitle.value = "";
   educationAmount.value = "";
@@ -1195,10 +1362,10 @@ function addEducationEntry() {
     child: educationChild.value,
     category: educationCategory.value,
     title,
-      amount,
-      date: formatShortDateInput(educationDate.value),
-      memo: buildMemoValue(educationMemo)
-    });
+    amount,
+    date: formatShortDateInput(educationDate.value),
+    memo: buildMemoValue(educationMemo)
+  });
 
   saveEducationEntries();
   resetEducationEntryForm();
@@ -1218,10 +1385,10 @@ function addQuickAcademyEntry() {
     child: academy.child,
     category: academy.category,
     title: academy.name,
-      amount: formatInputNumber(academyQuickAmount.value || academy.amount),
-      date: formatShortDateInput(academyQuickDate.value),
-      memo: buildMemoValue(academyQuickMemo) || academy.memo || ""
-    });
+    amount: formatInputNumber(academyQuickAmount.value || academy.amount),
+    date: formatShortDateInput(academyQuickDate.value),
+    memo: buildMemoValue(academyQuickMemo) || academy.memo || ""
+  });
 
   saveEducationEntries();
   academyQuickDate.value = "";
@@ -1416,8 +1583,8 @@ function load() {
     field.value = building.floorExcludes?.[index] || "";
   });
 
-  setPropertyDetailsCollapsed(Boolean(building.propertyDetailsCollapsed));
-  setFloorSettingsCollapsed(Boolean(building.floorSettingsCollapsed));
+  setPropertyDetailsCollapsed(true);
+  setFloorSettingsCollapsed(true);
   updateBuildingTypeUi();
 
   generate();
@@ -2199,6 +2366,7 @@ function backupData() {
     storageKey,
     current,
     buildings,
+    childProfiles,
     academies,
     educationEntries,
     currentAppTab
@@ -2228,16 +2396,18 @@ function importBackupData(file) {
       }
 
       buildings = importedBuildings;
-        current = Math.min(Number(parsed.current) || 0, buildings.length - 1);
-        academies = Array.isArray(parsed.academies) ? parsed.academies : [];
-        educationEntries = Array.isArray(parsed.educationEntries) ? parsed.educationEntries : [];
-        currentAppTab = parsed.currentAppTab || "rental";
-        persistLocalState();
-        load();
-        setAppTab(currentAppTab);
-      } catch (error) {
-        window.alert("백업 파일을 읽지 못했습니다.");
-      } finally {
+      childProfiles = normalizeChildProfiles(parsed.childProfiles);
+      current = Math.min(Number(parsed.current) || 0, buildings.length - 1);
+      academies = Array.isArray(parsed.academies) ? parsed.academies : [];
+      educationEntries = Array.isArray(parsed.educationEntries) ? parsed.educationEntries : [];
+      normalizeEducationData();
+      currentAppTab = parsed.currentAppTab || "rental";
+      persistLocalState();
+      load();
+      setAppTab(currentAppTab);
+    } catch (error) {
+      window.alert("백업 파일을 읽지 못했습니다.");
+    } finally {
       importDataInput.value = "";
     }
   };
@@ -2457,11 +2627,32 @@ academyQuickButtons.addEventListener("click", (event) => {
   if (addButton) {
     const selectedAcademy = academies.find((academy) => academy.id === selectedAcademyId);
     if (!selectedAcademy || selectedAcademy.child !== addButton.dataset.child) {
-      window.alert(`${addButton.dataset.child} 학원을 먼저 선택해 주세요.`);
+      window.alert(`${getChildName(addButton.dataset.child)} 학원을 먼저 선택해 주세요.`);
       return;
     }
     addQuickAcademyEntry();
   }
+});
+
+educationChildManager.addEventListener("click", (event) => {
+  const addButton = event.target.closest("#addChildProfileButton");
+  if (addButton) {
+    addChildProfile();
+    return;
+  }
+
+  const removeButton = event.target.closest("[data-remove-child-id]");
+  if (removeButton && !removeButton.disabled) {
+    removeChildProfile(removeButton.dataset.removeChildId);
+  }
+});
+
+educationChildManager.addEventListener("change", (event) => {
+  const input = event.target.closest(".child-profile-name-input");
+  if (!input) {
+    return;
+  }
+  updateChildProfileName(input.dataset.childProfileId, input.value);
 });
 
 document.addEventListener("click", (event) => {
