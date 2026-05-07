@@ -1440,6 +1440,35 @@ input[type="checkbox"] {
   align-items: center;
 }
 
+.academy-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.academy-quick-date-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.academy-quick-date-inline input {
+  width: 104px;
+  text-align: center;
+}
+
+.date-shift-button {
+  border: 1px solid var(--accent-strong);
+  background: #fff7ef;
+  color: var(--accent-strong);
+  border-radius: 999px;
+  padding: 7px 11px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
 .academy-quick-group-items {
   display: flex;
   flex-wrap: wrap;
@@ -1493,17 +1522,17 @@ input[type="checkbox"] {
 }
 
 .academy-quick-button.child1.active {
-  background: linear-gradient(180deg, #ffdfe9 0%, #ffcddd 100%);
-  border-color: #e8a4bf;
-  color: #9c4869;
-  box-shadow: 0 8px 18px rgba(232, 164, 191, 0.26);
+  background: linear-gradient(180deg, #ffbfd5 0%, #ff9fc0 100%);
+  border-color: #cc6e95;
+  color: #7f2f4f;
+  box-shadow: 0 10px 20px rgba(204, 110, 149, 0.32);
 }
 
 .academy-quick-button.child2.active {
-  background: linear-gradient(180deg, #e2f2ff 0%, #cfe8ff 100%);
-  border-color: #97c4e8;
-  color: #3f719c;
-  box-shadow: 0 8px 18px rgba(151, 196, 232, 0.26);
+  background: linear-gradient(180deg, #bde1ff 0%, #98ccff 100%);
+  border-color: #5d9dd8;
+  color: #275b86;
+  box-shadow: 0 10px 20px rgba(93, 157, 216, 0.32);
 }
 
 .education-yearly-block {
