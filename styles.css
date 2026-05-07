@@ -1445,7 +1445,23 @@ input[type="checkbox"] {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.academy-quick-submit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.academy-quick-date-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .academy-quick-date-inline {
@@ -1828,6 +1844,16 @@ hr {
 
   .education-columns {
     grid-template-columns: 1fr;
+  }
+
+  .academy-quick-actions {
+    align-items: flex-start;
+  }
+
+  .academy-quick-submit-row {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
   }
 
   .education-list {

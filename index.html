@@ -307,17 +307,20 @@
         <div class="education-subsection">
           <div class="section-heading">
             <h3>등록 학원으로 빠른 입력</h3>
-            <button type="button" id="toggleQuickAcademyDetailsButton" class="collapse-toggle">세부 열기</button>
           </div>
           <div id="academyQuickButtons" class="academy-quick-buttons"></div>
           <div class="academy-quick-actions">
-            <div class="academy-quick-date-inline">
-              <button type="button" id="academyQuickPrevDayButton" class="date-shift-button">&lt;</button>
-              <input id="academyQuickDate" placeholder="YY-MM-DD" inputmode="numeric" maxlength="8">
-              <button type="button" id="academyQuickNextDayButton" class="date-shift-button">&gt;</button>
+            <button type="button" id="toggleQuickAcademyDetailsButton" class="collapse-toggle">세부사항 열기</button>
+            <div class="academy-quick-submit-row">
+              <span class="academy-quick-date-label">날짜</span>
+              <div class="academy-quick-date-inline">
+                <button type="button" id="academyQuickPrevDayButton" class="date-shift-button">&lt;</button>
+                <input id="academyQuickDate" placeholder="YY-MM-DD" inputmode="numeric" maxlength="8">
+                <button type="button" id="academyQuickNextDayButton" class="date-shift-button">&gt;</button>
+              </div>
+              <button type="button" id="academyQuickTodayButton" class="secondary-action">오늘</button>
+              <button type="button" id="academyQuickAddButton">이번 달에 추가</button>
             </div>
-            <button type="button" id="academyQuickTodayButton" class="secondary-action">오늘</button>
-            <button type="button" id="academyQuickAddButton">이번 달에 추가</button>
           </div>
           <div id="academyQuickDetails" class="education-entry-grid hidden">
             <div class="education-entry-field">

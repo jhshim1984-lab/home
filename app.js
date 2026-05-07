@@ -1048,7 +1048,7 @@ function setEducationSubsectionCollapsed(sectionName, collapsed) {
 function setQuickAcademyDetailsCollapsed(collapsed) {
   quickAcademyDetailsCollapsed = collapsed;
   academyQuickDetails.classList.toggle("hidden", collapsed);
-  toggleQuickAcademyDetailsButton.innerText = collapsed ? "세부 열기" : "세부 접기";
+  toggleQuickAcademyDetailsButton.innerText = collapsed ? "세부사항 열기" : "세부사항 접기";
 }
 
 function setChildManagerCollapsed(collapsed) {
