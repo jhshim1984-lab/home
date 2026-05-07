@@ -1454,7 +1454,8 @@ input[type="checkbox"] {
   gap: 8px;
   align-items: center;
   justify-content: center;
-  margin-left: auto;
+  width: 100%;
+  margin-left: 0;
 }
 
 .academy-quick-date-label {
