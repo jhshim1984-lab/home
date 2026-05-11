@@ -54,6 +54,8 @@ const appTabOrder = ["dashboard", "rental", "education", "report"];
 let appSwipeStartX = null;
 let appSwipeStartY = null;
 let appSwipeTracking = false;
+let shouldLockOnReturn = false;
+let reauthLocked = false;
 
 function newBuilding() {
   return {
@@ -505,6 +507,20 @@ function setAppAccess(isAllowed) {
   appShell.classList.toggle("hidden", !isAllowed);
 }
 
+function showReauthMessage(message = "", isVisible = true) {
+  reauthMessage.innerText = message;
+  reauthMessage.classList.toggle("hidden", !isVisible || !message);
+}
+
+function setReauthLock(locked) {
+  reauthLocked = locked;
+  reauthOverlay.classList.toggle("hidden", !locked);
+  if (!locked) {
+    reauthPassword.value = "";
+    showReauthMessage("", false);
+  }
+}
+
 function getHouseholdSelectionKey(userId) {
   return `${householdSelectionStoragePrefix}${userId}`;
 }
@@ -673,6 +689,8 @@ async function applyAuthenticatedState(session) {
     currentHouseholdId = "";
     currentHouseholdRole = "";
     currentHouseholds = [];
+    shouldLockOnReturn = false;
+    setReauthLock(false);
     remoteSyncAvailable = true;
     syncMessageShown = false;
     latestRemoteUpdatedAt = "";
@@ -764,6 +782,8 @@ async function handleLogout() {
   currentHouseholdRole = "";
   currentHouseholds = [];
   currentSession = null;
+  shouldLockOnReturn = false;
+  setReauthLock(false);
   remoteSyncAvailable = true;
   syncMessageShown = false;
   latestRemoteUpdatedAt = "";
@@ -788,6 +808,39 @@ async function handleLogout() {
     window.setTimeout(() => {
       window.location.replace(window.location.pathname);
     }, 60);
+  }
+}
+
+async function handleReauthUnlock() {
+  if (!supabaseClient || !currentSession?.user?.email) {
+    return;
+  }
+
+  const password = reauthPassword.value;
+  if (!password) {
+    showReauthMessage("비밀번호를 입력해 주세요.");
+    return;
+  }
+
+  showReauthMessage("다시 인증 중...");
+
+  const { error } = await withAuthTimeout(
+    supabaseClient.auth.signInWithPassword({
+      email: currentSession.user.email,
+      password
+    }),
+    "다시 인증이 지연되고 있습니다. 잠시 후 다시 시도해 주세요."
+  );
+
+  if (error) {
+    showReauthMessage(error.message || "다시 인증에 실패했습니다.");
+    return;
+  }
+
+  shouldLockOnReturn = false;
+  setReauthLock(false);
+  if (canUseRemoteSync()) {
+    checkForRemoteUpdates({ announce: false });
   }
 }
 
@@ -2984,6 +3037,12 @@ loginPassword.addEventListener("keydown", (event) => {
   }
 });
 
+reauthPassword.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    handleReauthUnlock();
+  }
+});
+
 refreshRemoteButton.addEventListener("click", () => {
   refreshFromRemoteSnapshot(true);
 });
@@ -3004,6 +3063,14 @@ pushRemoteButton.addEventListener("click", async () => {
   if (success) {
     showAuthMessage("현재 기기 데이터를 클라우드에 올렸습니다.");
   }
+});
+
+reauthUnlockButton.addEventListener("click", () => {
+  handleReauthUnlock();
+});
+
+reauthLogoutButton.addEventListener("click", () => {
+  handleLogout();
 });
 
 appShell.addEventListener("touchstart", (event) => {
@@ -3048,14 +3115,27 @@ appShell.addEventListener("touchend", (event) => {
 }, { passive: true });
 
 window.addEventListener("focus", () => {
+  if (currentSession?.user && shouldLockOnReturn && !reauthLocked) {
+    setReauthLock(true);
+  }
   if (canUseRemoteSync()) {
     checkForRemoteUpdates();
   }
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && canUseRemoteSync()) {
-    checkForRemoteUpdates();
+  if (document.visibilityState === "hidden" && currentSession?.user) {
+    shouldLockOnReturn = true;
+    return;
+  }
+
+  if (document.visibilityState === "visible") {
+    if (currentSession?.user && shouldLockOnReturn) {
+      setReauthLock(true);
+    }
+    if (!reauthLocked && canUseRemoteSync()) {
+      checkForRemoteUpdates();
+    }
   }
 });
 

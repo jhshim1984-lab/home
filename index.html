@@ -46,6 +46,19 @@
     아이폰에서는 사파리의 공유 버튼을 눌러 <b>홈 화면에 추가</b>하면 앱처럼 사용할 수 있습니다.
   </div>
 
+  <div id="reauthOverlay" class="reauth-overlay hidden">
+    <div class="reauth-card">
+      <h3>다시 인증</h3>
+      <p>앱으로 다시 돌아와서 내용을 보려면 비밀번호를 다시 입력해 주세요.</p>
+      <input id="reauthPassword" type="password" placeholder="비밀번호">
+      <div class="reauth-actions">
+        <button type="button" id="reauthUnlockButton">다시 인증</button>
+        <button type="button" id="reauthLogoutButton" class="secondary-action">로그아웃</button>
+      </div>
+      <div id="reauthMessage" class="auth-message hidden"></div>
+    </div>
+  </div>
+
   <div id="appShell" class="hidden">
   <div class="app-tabs">
     <button type="button" class="app-tab active" data-tab="dashboard">대시보드</button>
