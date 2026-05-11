@@ -35,6 +35,7 @@
       </div>
       <select id="householdSelect" class="hidden"></select>
       <div class="auth-status-actions">
+        <button type="button" id="registerPasskeyButton" class="secondary-action hidden">Face ID 등록</button>
         <button type="button" id="pushRemoteButton" class="secondary-action">수동 올리기</button>
         <button type="button" id="refreshRemoteButton">동기화 새로고침</button>
         <button type="button" id="logoutButton">로그아웃</button>
@@ -49,7 +50,8 @@
   <div id="reauthOverlay" class="reauth-overlay hidden">
     <div class="reauth-card">
       <h3>다시 인증</h3>
-      <p>앱으로 다시 돌아와서 내용을 보려면 비밀번호를 다시 입력해 주세요.</p>
+      <p>앱으로 다시 돌아와서 내용을 보려면 Face ID 또는 비밀번호로 다시 인증해 주세요.</p>
+      <button type="button" id="reauthPasskeyButton" class="hidden">Face ID로 열기</button>
       <input id="reauthPassword" type="password" placeholder="비밀번호">
       <div class="reauth-actions">
         <button type="button" id="reauthUnlockButton">다시 인증</button>
