@@ -534,20 +534,21 @@ async function withAuthTimeout(promise, timeoutMessage) {
 }
 
 function setAuthUiLoggedOut() {
+  authPanel.querySelector(".auth-copy").classList.remove("hidden");
   authForm.classList.remove("hidden");
   authStatusBar.classList.add("hidden");
   authUserEmail.innerText = "-";
-  householdNameLabel.innerText = "가족 데이터에 로그인해 주세요.";
-  authIdentityLabel.innerText = "가족 로그인";
+  householdNameLabel.innerText = "";
   householdSelect.classList.add("hidden");
   householdSelect.innerHTML = "";
 }
 
-function setAuthUiLoggedIn(userEmail, householdLabel) {
+function setAuthUiLoggedIn(identityLabel, householdLabel) {
+  authPanel.querySelector(".auth-copy").classList.add("hidden");
   authForm.classList.add("hidden");
   authStatusBar.classList.remove("hidden");
-  authUserEmail.innerText = userEmail || "-";
-  householdNameLabel.innerText = householdLabel || "가족 데이터 연결됨";
+  authUserEmail.innerText = identityLabel || "-";
+  householdNameLabel.innerText = householdLabel || "";
 }
 
 function getDisplayIdentity(user) {
@@ -594,8 +595,7 @@ async function switchHousehold(householdId, options = {}) {
   currentAppTab = "dashboard";
   localStorage.setItem(appTabStorageKey, currentAppTab);
   storeHouseholdSelection(userId, currentHouseholdId);
-  setAuthUiLoggedIn(currentSession?.user?.email, `${nextHousehold.householdName} · ${nextHousehold.role}`);
-  authIdentityLabel.innerText = getDisplayIdentity(currentSession?.user);
+  setAuthUiLoggedIn(getDisplayIdentity(currentSession?.user), `${nextHousehold.householdName} · ${nextHousehold.role}`);
   renderHouseholdSelector(userId);
 
   try {
@@ -688,8 +688,7 @@ async function applyAuthenticatedState(session) {
     currentHouseholds = await loadCurrentHouseholds(session.user.id);
     if (!currentHouseholds.length) {
       currentHouseholdId = "";
-      setAuthUiLoggedIn(session.user.email, "가족 데이터 연결이 아직 없습니다.");
-      authIdentityLabel.innerText = getDisplayIdentity(session.user);
+      setAuthUiLoggedIn(getDisplayIdentity(session.user), "가족 데이터 연결이 아직 없습니다.");
       setAppAccess(true);
       bootApp();
       showAuthMessage("이 계정은 아직 household에 연결되지 않았습니다. Supabase에서 household_members 연결을 먼저 확인해 주세요.");
@@ -709,8 +708,7 @@ async function applyAuthenticatedState(session) {
   } catch (error) {
     currentHouseholdId = "";
     currentHouseholds = [];
-    setAuthUiLoggedIn(session.user.email, "가족 데이터 연결 확인 보류");
-    authIdentityLabel.innerText = getDisplayIdentity(session.user);
+    setAuthUiLoggedIn(getDisplayIdentity(session.user), "가족 데이터 연결 확인 보류");
     setAppAccess(true);
     bootApp();
     showAuthMessage(`가족 데이터 연결 확인 중 오류가 발생했습니다: ${error.message || error} / 우선은 로컬 모드로 앱을 열었습니다.`);

@@ -21,7 +21,6 @@
     <div class="auth-copy">
       <div class="auth-copy-row">
         <strong>홈집사</strong>
-        <span id="authIdentityLabel">가족 로그인</span>
       </div>
     </div>
     <div id="authForm" class="auth-form">
@@ -35,9 +34,11 @@
         <span id="householdNameLabel">가족 데이터 연결 확인 중</span>
       </div>
       <select id="householdSelect" class="hidden"></select>
+      <div class="auth-status-actions">
         <button type="button" id="pushRemoteButton" class="secondary-action">수동 올리기</button>
-      <button type="button" id="refreshRemoteButton">동기화 새로고침</button>
-      <button type="button" id="logoutButton">로그아웃</button>
+        <button type="button" id="refreshRemoteButton">동기화 새로고침</button>
+        <button type="button" id="logoutButton">로그아웃</button>
+      </div>
     </div>
     <div id="authMessage" class="auth-message hidden"></div>
   </div>
@@ -236,12 +237,55 @@
 
     <div id="educationChildManager" class="education-child-manager"></div>
 
-    <div class="section-heading">
-      <h3 id="educationEntryTitle">빠른 입력</h3>
-    </div>
-
     <div id="educationEntryCard" class="education-entry-card">
       <div class="education-entry-sections">
+        <div class="education-subsection">
+          <div class="section-heading">
+            <h3>등록 학원으로 빠른 입력</h3>
+            <button type="button" id="toggleQuickAcademyDetailsButton" class="collapse-toggle">세부사항 열기</button>
+          </div>
+          <div id="academyQuickButtons" class="academy-quick-buttons"></div>
+          <div class="academy-quick-actions">
+            <div class="academy-quick-submit-row">
+              <div class="academy-quick-date-inline">
+                <button type="button" id="academyQuickPrevDayButton" class="date-shift-button">&lt;</button>
+                <input id="academyQuickDate" placeholder="YY-MM-DD" inputmode="numeric" maxlength="8">
+                <button type="button" id="academyQuickNextDayButton" class="date-shift-button">&gt;</button>
+              </div>
+              <button type="button" id="academyQuickTodayButton" class="secondary-action">오늘</button>
+              <button type="button" id="academyQuickAddButton">추가</button>
+            </div>
+          </div>
+          <div id="academyQuickDetails" class="education-entry-grid hidden">
+            <div class="education-entry-field">
+              <label for="academyQuickChild">자녀</label>
+              <input id="academyQuickChild" readonly>
+            </div>
+            <div class="education-entry-field">
+              <label for="academyQuickCategory">항목</label>
+              <input id="academyQuickCategory" readonly>
+            </div>
+            <div class="education-entry-field">
+              <label for="academyQuickTitle">내용</label>
+              <input id="academyQuickTitle" readonly>
+            </div>
+            <div class="education-entry-field">
+              <label for="academyQuickAmount">금액</label>
+              <input id="academyQuickAmount" class="num">
+            </div>
+            <div class="education-entry-field education-entry-field-wide">
+              <label for="academyQuickMemo">메모</label>
+              <div class="memo-inline">
+                <div class="memo-choices" data-target="academyQuickMemo">
+                  <button type="button" class="memo-choice" data-target="academyQuickMemo" data-value="아빠">아빠</button>
+                  <button type="button" class="memo-choice" data-target="academyQuickMemo" data-value="엄마">엄마</button>
+                </div>
+                <input id="academyQuickMemo" placeholder="직접 입력">
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="education-subsection" id="academySubsection">
           <div class="section-heading">
             <h3>학원 등록 / 관리</h3>
@@ -288,53 +332,6 @@
             <button type="button" id="addAcademyButton">학원 등록</button>
           </div>
           <div id="academyList" class="academy-list"></div>
-          </div>
-        </div>
-
-        <div class="education-subsection">
-          <div class="section-heading">
-            <h3>등록 학원으로 빠른 입력</h3>
-            <button type="button" id="toggleQuickAcademyDetailsButton" class="collapse-toggle">세부사항 열기</button>
-          </div>
-          <div id="academyQuickButtons" class="academy-quick-buttons"></div>
-          <div class="academy-quick-actions">
-            <div class="academy-quick-submit-row">
-              <div class="academy-quick-date-inline">
-                <button type="button" id="academyQuickPrevDayButton" class="date-shift-button">&lt;</button>
-                <input id="academyQuickDate" placeholder="YY-MM-DD" inputmode="numeric" maxlength="8">
-                <button type="button" id="academyQuickNextDayButton" class="date-shift-button">&gt;</button>
-              </div>
-              <button type="button" id="academyQuickTodayButton" class="secondary-action">오늘</button>
-              <button type="button" id="academyQuickAddButton">추가</button>
-            </div>
-          </div>
-          <div id="academyQuickDetails" class="education-entry-grid hidden">
-            <div class="education-entry-field">
-              <label for="academyQuickChild">자녀</label>
-              <input id="academyQuickChild" readonly>
-            </div>
-            <div class="education-entry-field">
-              <label for="academyQuickCategory">항목</label>
-              <input id="academyQuickCategory" readonly>
-            </div>
-            <div class="education-entry-field">
-              <label for="academyQuickTitle">내용</label>
-              <input id="academyQuickTitle" readonly>
-            </div>
-            <div class="education-entry-field">
-              <label for="academyQuickAmount">금액</label>
-              <input id="academyQuickAmount" class="num">
-            </div>
-            <div class="education-entry-field education-entry-field-wide">
-              <label for="academyQuickMemo">메모</label>
-              <div class="memo-inline">
-                <div class="memo-choices" data-target="academyQuickMemo">
-                  <button type="button" class="memo-choice" data-target="academyQuickMemo" data-value="아빠">아빠</button>
-                  <button type="button" class="memo-choice" data-target="academyQuickMemo" data-value="엄마">엄마</button>
-                </div>
-                <input id="academyQuickMemo" placeholder="직접 입력">
-              </div>
-            </div>
           </div>
         </div>
 
@@ -408,9 +405,6 @@
   </section>
 
   <section id="dashboardSection" class="panel app-panel app-section hidden">
-    <div class="section-heading">
-      <h3>대시보드</h3>
-    </div>
     <div class="education-toolbar">
       <button type="button" id="dashboardPrevMonth" class="month-nav">&lt;</button>
       <div id="dashboardMonthToolbarLabel" class="education-month-label">이번 달</div>

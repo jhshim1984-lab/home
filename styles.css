@@ -112,9 +112,18 @@ body {
 }
 
 .auth-status-copy {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1;
+  min-width: 0;
+}
+
+.auth-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .auth-message {
@@ -153,6 +162,7 @@ h3 {
 .app-tabs {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
   margin-bottom: 18px;
   position: sticky;
@@ -1815,6 +1825,7 @@ hr {
     margin-bottom: 14px;
     overflow-x: auto;
     flex-wrap: nowrap;
+    justify-content: flex-start;
     scrollbar-width: none;
   }
 
@@ -1826,6 +1837,12 @@ hr {
     flex: 0 0 auto;
     padding: 9px 13px;
     white-space: nowrap;
+  }
+
+  .auth-status-copy,
+  .auth-status-actions {
+    width: 100%;
+    justify-content: center;
   }
 
   .grid2 {
