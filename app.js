@@ -523,6 +523,9 @@ async function refreshPasskeyState() {
     return;
   }
 
+  registerPasskeyButton.classList.remove("hidden");
+  registerPasskeyButton.innerText = "Face ID 등록";
+
   try {
     const { data, error } = await supabaseClient.auth.passkey.list();
     if (error) {
@@ -530,12 +533,10 @@ async function refreshPasskeyState() {
     }
 
     passkeyRegistered = Array.isArray(data) && data.length > 0;
-    registerPasskeyButton.classList.remove("hidden");
     registerPasskeyButton.innerText = passkeyRegistered ? "Face ID 다시 등록" : "Face ID 등록";
     reauthPasskeyButton.classList.toggle("hidden", !passkeyRegistered);
   } catch (_error) {
     passkeyRegistered = false;
-    registerPasskeyButton.classList.add("hidden");
     reauthPasskeyButton.classList.add("hidden");
   }
 }
