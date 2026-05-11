@@ -189,17 +189,6 @@ body {
   flex: 1;
 }
 
-#reauthPasskeyButton {
-  border: 1px solid var(--accent-strong);
-  background: linear-gradient(180deg, #ffb257 0%, var(--accent) 100%);
-  color: #fffaf5;
-  border-radius: 999px;
-  padding: 10px 14px;
-  cursor: pointer;
-  font-weight: 800;
-  box-shadow: 0 8px 18px rgba(242, 140, 40, 0.22);
-}
-
 .hidden {
   display: none !important;
 }

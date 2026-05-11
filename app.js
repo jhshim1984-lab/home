@@ -16,15 +16,8 @@ const isSupabaseConfigured = Boolean(
   !supabaseConfig.anonKey.includes("YOUR_SUPABASE_ANON_KEY")
 );
 const supabaseClient = isSupabaseConfigured && window.supabase
-  ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey, {
-      auth: {
-        experimental: { passkey: true }
-      }
-    })
+  ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
   : null;
-const passkeySupported = typeof window !== "undefined" &&
-  window.isSecureContext &&
-  typeof window.PublicKeyCredential !== "undefined";
 let current = 0;
 let buildings = JSON.parse(localStorage.getItem(storageKey) || "null") || [newBuilding()];
 let educationEntries = JSON.parse(localStorage.getItem(educationStorageKey) || "[]");
@@ -63,7 +56,6 @@ let appSwipeStartY = null;
 let appSwipeTracking = false;
 let shouldLockOnReturn = false;
 let reauthLocked = false;
-let passkeyRegistered = false;
 
 function newBuilding() {
   return {
@@ -515,32 +507,6 @@ function setAppAccess(isAllowed) {
   appShell.classList.toggle("hidden", !isAllowed);
 }
 
-async function refreshPasskeyState() {
-  if (!supabaseClient || !currentSession?.user || !passkeySupported) {
-    passkeyRegistered = false;
-    registerPasskeyButton.classList.add("hidden");
-    reauthPasskeyButton.classList.add("hidden");
-    return;
-  }
-
-  registerPasskeyButton.classList.remove("hidden");
-  registerPasskeyButton.innerText = "Face ID 등록";
-
-  try {
-    const { data, error } = await supabaseClient.auth.passkey.list();
-    if (error) {
-      throw error;
-    }
-
-    passkeyRegistered = Array.isArray(data) && data.length > 0;
-    registerPasskeyButton.innerText = passkeyRegistered ? "Face ID 다시 등록" : "Face ID 등록";
-    reauthPasskeyButton.classList.toggle("hidden", !passkeyRegistered);
-  } catch (_error) {
-    passkeyRegistered = false;
-    reauthPasskeyButton.classList.add("hidden");
-  }
-}
-
 function showReauthMessage(message = "", isVisible = true) {
   reauthMessage.innerText = message;
   reauthMessage.classList.toggle("hidden", !isVisible || !message);
@@ -591,8 +557,6 @@ function setAuthUiLoggedOut() {
   householdNameLabel.innerText = "";
   householdSelect.classList.add("hidden");
   householdSelect.innerHTML = "";
-  registerPasskeyButton.classList.add("hidden");
-  reauthPasskeyButton.classList.add("hidden");
 }
 
 function setAuthUiLoggedIn(identityLabel, householdLabel) {
@@ -649,7 +613,6 @@ async function switchHousehold(householdId, options = {}) {
   storeHouseholdSelection(userId, currentHouseholdId);
   setAuthUiLoggedIn(getDisplayIdentity(currentSession?.user), `${nextHousehold.householdName} · ${nextHousehold.role}`);
   renderHouseholdSelector(userId);
-  refreshPasskeyState();
 
   try {
     const remoteState = await fetchRemoteAppState();
@@ -878,53 +841,6 @@ async function handleReauthUnlock() {
   setReauthLock(false);
   if (canUseRemoteSync()) {
     checkForRemoteUpdates({ announce: false });
-  }
-}
-
-async function handleRegisterPasskey() {
-  if (!supabaseClient || !currentSession?.user || !passkeySupported) {
-    showAuthMessage("이 기기에서는 Face ID 등록을 사용할 수 없습니다.");
-    return;
-  }
-
-  registerPasskeyButton.disabled = true;
-  showAuthMessage("Face ID 등록을 준비 중입니다...");
-
-  try {
-    const { error } = await supabaseClient.auth.registerPasskey();
-    if (error) {
-      throw error;
-    }
-
-    await refreshPasskeyState();
-    showAuthMessage("Face ID 등록이 완료되었습니다.");
-  } catch (error) {
-    showAuthMessage(`Face ID 등록에 실패했습니다: ${error.message || error}`);
-  } finally {
-    registerPasskeyButton.disabled = false;
-  }
-}
-
-async function handleReauthPasskey() {
-  if (!supabaseClient || !passkeySupported) {
-    showReauthMessage("이 기기에서는 Face ID를 사용할 수 없습니다.");
-    return;
-  }
-
-  showReauthMessage("Face ID 확인 중...");
-
-  try {
-    const { data, error } = await supabaseClient.auth.signInWithPasskey();
-    if (error) {
-      throw error;
-    }
-
-    await applyAuthenticatedState(data?.session || currentSession);
-    shouldLockOnReturn = false;
-    setReauthLock(false);
-    showReauthMessage("", false);
-  } catch (error) {
-    showReauthMessage(`Face ID 인증에 실패했습니다: ${error.message || error}`);
   }
 }
 
@@ -3155,14 +3071,6 @@ reauthUnlockButton.addEventListener("click", () => {
 
 reauthLogoutButton.addEventListener("click", () => {
   handleLogout();
-});
-
-registerPasskeyButton.addEventListener("click", () => {
-  handleRegisterPasskey();
-});
-
-reauthPasskeyButton.addEventListener("click", () => {
-  handleReauthPasskey();
 });
 
 appShell.addEventListener("touchstart", (event) => {
