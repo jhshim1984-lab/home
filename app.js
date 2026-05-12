@@ -299,12 +299,55 @@ function disableRemoteSyncWithMessage(message) {
   }
 }
 
+function hasNewerRemoteVersion(remoteUpdatedAt) {
+  if (!remoteUpdatedAt) {
+    return false;
+  }
+
+  if (!appliedRemoteUpdatedAt) {
+    return true;
+  }
+
+  return remoteUpdatedAt > appliedRemoteUpdatedAt;
+}
+
+async function canPushCurrentSnapshot(options = {}) {
+  const { announce = true } = options;
+
+  if (!canUseRemoteSync()) {
+    return false;
+  }
+
+  const remoteState = await fetchRemoteAppState();
+  const remoteUpdatedAt = remoteState?.updatedAt || "";
+
+  if (remoteUpdatedAt) {
+    latestRemoteUpdatedAt = remoteUpdatedAt;
+  }
+
+  if (hasNewerRemoteVersion(remoteUpdatedAt)) {
+    setRemoteUpdateNotice(true);
+    if (announce) {
+      const syncedAtLabel = new Date(remoteUpdatedAt).toLocaleString("ko-KR");
+      showAuthMessage(`서버에 더 최신 데이터가 있습니다. 먼저 새 데이터 받기를 눌러 주세요. 기준 시각: ${syncedAtLabel}`);
+    }
+    return false;
+  }
+
+  return true;
+}
+
 async function syncRemoteNow() {
   if (!canUseRemoteSync()) {
     return false;
   }
 
   try {
+    const canPush = await canPushCurrentSnapshot();
+    if (!canPush) {
+      return false;
+    }
+
     const updatedAt = await pushRemoteAppState();
     localChangesPending = false;
     latestRemoteUpdatedAt = updatedAt;
@@ -3062,6 +3105,8 @@ pushRemoteButton.addEventListener("click", async () => {
   const success = await syncRemoteNow();
   if (success) {
     showAuthMessage("현재 기기 데이터를 클라우드에 올렸습니다.");
+  } else if (remoteUpdateAvailable) {
+    showAuthMessage("서버에 더 최신 데이터가 있어 올리지 않았습니다. 새 데이터 받기를 먼저 눌러 주세요.");
   }
 });
 
